@@ -1,299 +1,359 @@
 /**
  * TeacherCreateClassScreen
  * 
- * Screen for creating new classes with auto-generated class codes.
- * Uses useForm hook for form management and useTeacherClasses for class creation.
+ * Screen for creating and uploading new classes/evaluations with file support.
  * 
- * Requirements: 1.9, 2.1, 5.2, 5.9, 10.6, 10.7, 10.14, 11.1, 11.9
+ * Requirements: 1.9, 2.1, 5.2, 5.9, 10.14, 11.1, 11.9
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  TouchableOpacity,
   ScrollView,
+  TextInput,
+  TouchableOpacity,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTeacher } from '@/context/TeacherContext';
-import { useForm } from '@/hooks/useForm';
-import { Input } from '@/components/shared/Input';
-import { Button } from '@/components/shared/Button';
 import type { RootStackScreenProps } from '@/types/navigation';
-import type { ClassFormData, ClassFormErrors } from '@/types/forms';
-
-// ============================================================================
-// Types
-// ============================================================================
+import { theme } from '@/styles';
 
 type Props = RootStackScreenProps<'TeacherCreateClass'>;
 
-interface ClassWithCode {
+interface UploadedFile {
   id: string;
   name: string;
-  description: string;
-  code: string;
-  createdAt: string;
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Generate a random 6-character alphanumeric class code
- */
-function generateClassCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  type: 'pdf' | 'word' | 'powerpoint' | 'image';
+  size: string;
 }
 
 /**
- * Validate class form data
+ * TeacherCreateClassScreen Component
+ * 
+ * Form for creating new classes with file upload support.
  */
-function validateClassForm(values: ClassFormData): ClassFormErrors {
-  const errors: ClassFormErrors = {};
-
-  if (!values.name.trim()) {
-    errors.name = 'Class name is required';
-  }
-
-  return errors;
-}
-
-// ============================================================================
-// Component
-// ============================================================================
-
 export default function TeacherCreateClassScreen({ navigation }: Props) {
-  const { classes, addClass } = useTeacher();
+  const [className, setClassName] = useState('');
+  const [description, setDescription] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([
+    // Mock files for demonstration
+    { id: '1', name: 'Guía de Fracciones.pdf', type: 'pdf', size: '2.4 MB' },
+    { id: '2', name: 'Ejercicios.docx', type: 'word', size: '1.1 MB' },
+  ]);
 
-  const { values, errors, handleChange, handleSubmit, isSubmitting } =
-    useForm<ClassFormData>({
-      initialValues: {
-        name: '',
-        subject: '',
-        grade: '',
-        description: '',
-      },
-      validate: validateClassForm,
-      onSubmit: async (formValues) => {
-        const newCode = generateClassCode();
-        const newClass: ClassWithCode = {
-          id: Date.now().toString(),
-          name: formValues.name.trim(),
-          description: formValues.description.trim(),
-          code: newCode,
-          createdAt: new Date().toISOString(),
-          // Note: subject and grade are in the form but not used in the original implementation
-        };
+  const handleFileUpload = (fileType: string) => {
+    // Mock file upload - in production this would use expo-document-picker
+    Alert.alert(
+      'Subir Archivo',
+      `Seleccionar archivo de tipo: ${fileType}`,
+      [{ text: 'OK' }]
+    );
+  };
 
-        addClass(newClass as any); // Type assertion needed due to context type mismatch
+  const handleRemoveFile = (fileId: string) => {
+    setUploadedFiles(uploadedFiles.filter(file => file.id !== fileId));
+  };
 
-        Alert.alert(
-          'Class Created Successfully!',
-          `Your class code is:\n\n${newCode}\n\nShare this code with your students.`,
-          [{ text: 'OK' }]
-        );
-      },
-    });
+  const handlePublish = () => {
+    if (!className.trim()) {
+      Alert.alert('Error', 'Por favor ingresa un nombre para la clase');
+      return;
+    }
+    Alert.alert('Éxito', 'Clase publicada correctamente', [
+      { text: 'OK', onPress: () => navigation.goBack() }
+    ]);
+  };
+
+  const handleSaveDraft = () => {
+    if (!className.trim()) {
+      Alert.alert('Error', 'Por favor ingresa un nombre para la clase');
+      return;
+    }
+    Alert.alert('Éxito', 'Borrador guardado correctamente', [
+      { text: 'OK', onPress: () => navigation.goBack() }
+    ]);
+  };
+
+  const getFileIcon = (type: string) => {
+    switch (type) {
+      case 'pdf': return '📄';
+      case 'word': return '📝';
+      case 'powerpoint': return '📊';
+      case 'image': return '🖼️';
+      default: return '📎';
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color="#2D3748" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create a New Class</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Class Details</Text>
-
-            <Input
-              label="Class Name"
-              placeholder="e.g. Mathematics 101"
-              value={values.name}
-              onChangeText={handleChange('name')}
-              error={errors.name}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Form Container */}
+        <View style={styles.formContainer}>
+          {/* Class Name Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nombre de la Clase</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ej: Matemáticas - Fracciones"
+              placeholderTextColor={theme.colors.text.tertiary}
+              value={className}
+              onChangeText={setClassName}
             />
-
-            <Input
-              label="Description (Optional)"
-              placeholder="e.g. Advanced algebra and calculus"
-              value={values.description}
-              onChangeText={handleChange('description')}
-              multiline
-              numberOfLines={3}
-              style={styles.textArea}
-            />
-
-            <Button
-              onPress={handleSubmit}
-              loading={isSubmitting}
-              leftIcon={<Ionicons name="school-outline" size={20} color="#FFF" />}
-            >
-              Generate Class Code
-            </Button>
           </View>
 
-          <Text style={styles.sectionTitle}>
-            Created Classes ({classes.length})
-          </Text>
+          {/* Description Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Descripción</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Describe el contenido de la clase..."
+              placeholderTextColor={theme.colors.text.tertiary}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
 
-          {classes.length === 0 ? (
-            <Text style={styles.emptyText}>
-              You haven't created any classes yet.
+          {/* File Upload Section */}
+          <View style={styles.uploadSection}>
+            <Text style={styles.sectionTitle}>Subir Archivos</Text>
+            <Text style={styles.sectionSubtitle}>
+              Agrega materiales de apoyo para tu clase
             </Text>
-          ) : (
-            classes.map((cls: any) => (
-              <View key={cls.id} style={styles.classCard}>
-                <View style={styles.classHeader}>
-                  <Text style={styles.classNameText}>{cls.name}</Text>
-                  <View style={styles.codeBadge}>
-                    <Text style={styles.codeText}>
-                      {(cls as any).code || 'N/A'}
-                    </Text>
+
+            {/* File Type Buttons */}
+            <View style={styles.fileTypeGrid}>
+              <TouchableOpacity
+                style={styles.fileTypeButton}
+                onPress={() => handleFileUpload('PDF')}
+              >
+                <Text style={styles.fileTypeIcon}>📄</Text>
+                <Text style={styles.fileTypeText}>PDF</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.fileTypeButton}
+                onPress={() => handleFileUpload('Word')}
+              >
+                <Text style={styles.fileTypeIcon}>📝</Text>
+                <Text style={styles.fileTypeText}>Word</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.fileTypeButton}
+                onPress={() => handleFileUpload('PowerPoint')}
+              >
+                <Text style={styles.fileTypeIcon}>📊</Text>
+                <Text style={styles.fileTypeText}>PPT</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.fileTypeButton}
+                onPress={() => handleFileUpload('Imagen')}
+              >
+                <Text style={styles.fileTypeIcon}>🖼️</Text>
+                <Text style={styles.fileTypeText}>Imagen</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Uploaded Files List - Separate section for better visibility */}
+          {uploadedFiles.length > 0 && (
+            <View style={styles.uploadedFilesSection}>
+              <Text style={styles.uploadedFilesTitle}>Archivos Subidos ({uploadedFiles.length})</Text>
+              {uploadedFiles.map((file) => (
+                <View key={file.id} style={styles.fileItem}>
+                  <Text style={styles.fileItemIcon}>{getFileIcon(file.type)}</Text>
+                  <View style={styles.fileItemContent}>
+                    <Text style={styles.fileItemName}>{file.name}</Text>
+                    <Text style={styles.fileItemSize}>{file.size}</Text>
                   </View>
+                  <TouchableOpacity
+                    style={styles.removeFileButton}
+                    onPress={() => handleRemoveFile(file.id)}
+                  >
+                    <Text style={styles.removeFileIcon}>🗑️</Text>
+                  </TouchableOpacity>
                 </View>
-                {(cls as any).description ? (
-                  <Text style={styles.classDescText}>
-                    {(cls as any).description}
-                  </Text>
-                ) : null}
-              </View>
-            ))
+              ))}
+            </View>
           )}
 
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.publishButton}
+              onPress={handlePublish}
+            >
+              <Text style={styles.publishButtonText}>Publicar Clase</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.draftButton}
+              onPress={handleSaveDraft}
+            >
+              <Text style={styles.draftButtonText}>Guardar como Borrador</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ============================================================================
-// Styles
-// ============================================================================
-
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAFBFD' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#FAFBFD',
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background.secondary,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  scrollView: {
+    flex: 1,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#2D3748' },
-  content: { flex: 1, paddingHorizontal: 20 },
-
-  card: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+  formContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#2D3748',
-    marginBottom: 20,
+  inputGroup: {
+    marginBottom: theme.spacing.lg,
   },
+  label: {
+    fontSize: 16,
+    fontWeight: theme.fontWeight.semibold as any,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  input: {
+    backgroundColor: theme.colors.background.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+    borderRadius: theme.borderRadius.base,
+    paddingHorizontal: theme.spacing.base,
+    paddingVertical: theme.spacing.md,
+    fontSize: theme.fontSize.base,
+    color: theme.colors.text.primary,
+    outlineStyle: 'none',
+  } as any,
   textArea: {
-    height: 80,
-    textAlignVertical: 'top',
+    minHeight: 100,
+    paddingTop: theme.spacing.md,
   },
-
+  uploadSection: {
+    marginBottom: theme.spacing.base,
+  },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#4A5568',
-    marginTop: 10,
-    marginBottom: 15,
+    fontWeight: theme.fontWeight.bold as any,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xs,
   },
-  emptyText: {
-    color: '#A0AEC0',
-    fontSize: 15,
-    textAlign: 'center',
-    marginTop: 20,
-    fontStyle: 'italic',
+  sectionSubtitle: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.base,
   },
-
-  classCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    borderLeftWidth: 4,
-    borderLeftColor: '#34A853',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  classHeader: {
+  fileTypeGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: theme.spacing.md,
+  },
+  fileTypeButton: {
+    width: '22%',
+    aspectRatio: 1,
+    backgroundColor: theme.colors.background.primary,
+    borderWidth: 2,
+    borderColor: theme.colors.teacher.border,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    ...theme.shadows.sm,
   },
-  classNameText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2D3748',
-    flex: 1,
-    marginRight: 10,
+  fileTypeIcon: {
+    fontSize: 32,
+    marginBottom: theme.spacing.xs,
   },
-  codeBadge: {
-    backgroundColor: '#E6F4EA',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+  fileTypeText: {
+    fontSize: 12,
+    fontWeight: theme.fontWeight.medium as any,
+    color: theme.colors.text.primary,
   },
-  codeText: {
-    color: '#0D652D',
-    fontWeight: '800',
+  uploadedFilesSection: {
+    marginBottom: theme.spacing.lg,
+    paddingTop: theme.spacing.base,
+  },
+  uploadedFilesTitle: {
     fontSize: 16,
-    letterSpacing: 1,
+    fontWeight: theme.fontWeight.semibold as any,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
   },
-  classDescText: { fontSize: 14, color: '#718096' },
+  fileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border.light,
+    borderRadius: theme.borderRadius.base,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  fileItemIcon: {
+    fontSize: 24,
+    marginRight: theme.spacing.md,
+  },
+  fileItemContent: {
+    flex: 1,
+  },
+  fileItemName: {
+    fontSize: 14,
+    fontWeight: theme.fontWeight.medium as any,
+    color: theme.colors.text.primary,
+    marginBottom: 2,
+  },
+  fileItemSize: {
+    fontSize: 12,
+    color: theme.colors.text.tertiary,
+  },
+  removeFileButton: {
+    padding: theme.spacing.sm,
+  },
+  removeFileIcon: {
+    fontSize: 20,
+  },
+  actionButtons: {
+    gap: theme.spacing.md,
+  },
+  publishButton: {
+    backgroundColor: theme.colors.teacher.main,
+    paddingVertical: theme.spacing.base,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    ...theme.shadows.base,
+  },
+  publishButtonText: {
+    color: theme.colors.text.inverse,
+    fontSize: 16,
+    fontWeight: theme.fontWeight.semibold as any,
+  },
+  draftButton: {
+    backgroundColor: theme.colors.background.primary,
+    borderWidth: 2,
+    borderColor: theme.colors.teacher.main,
+    paddingVertical: theme.spacing.base,
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+  },
+  draftButtonText: {
+    color: theme.colors.teacher.main,
+    fontSize: 16,
+    fontWeight: theme.fontWeight.semibold as any,
+  },
+  bottomSpacer: {
+    height: theme.spacing.xl,
+  },
 });

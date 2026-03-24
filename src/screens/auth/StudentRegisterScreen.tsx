@@ -16,7 +16,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Input } from '@/components/shared/Input';
 import { Button } from '@/components/shared/Button';
 import { useAuth } from '@/hooks/useAuth';
@@ -41,7 +43,7 @@ type Props = RootStackScreenProps<'StudentRegister'>;
 // Component
 // ============================================================================
 
-export default function StudentRegisterScreen(_props: Props) {
+export default function StudentRegisterScreen({ navigation }: Props) {
   const { signUp, loading } = useAuth();
   const [error, setError] = useState<string | undefined>();
 
@@ -111,93 +113,107 @@ export default function StudentRegisterScreen(_props: Props) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.emoji}>👨‍🎓</Text>
-            <Text style={styles.title}>Student Register</Text>
-            <Text style={styles.subtitle}>
-              Create an account to join a class
-            </Text>
-          </View>
+          <View style={styles.container}>
+            {/* Icon */}
+            <View style={styles.iconContainer}>
+              <Ionicons name="school" size={48} color={theme.colors.student.main} />
+            </View>
 
-          {/* Form */}
-          <View style={styles.form}>
-            <Input
-              label="Full Name"
-              placeholder="e.g. John Doe"
-              value={values.fullName}
-              onChangeText={handleChange('fullName')}
-              error={errors.fullName}
-              autoCapitalize="words"
-              editable={!loading}
-              focusColor={theme.colors.student.main}
-            />
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Registro de{'\n'}Estudiante</Text>
+              <Text style={styles.subtitle}>
+                Completa tus datos para unirte{'\n'}a una clase
+              </Text>
+            </View>
 
-            <Input
-              label="Email Address"
-              placeholder="e.g. student@school.edu"
-              value={values.email}
-              onChangeText={handleChange('email')}
-              error={errors.email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-              focusColor={theme.colors.student.main}
-            />
+            {/* Form */}
+            <View style={styles.form}>
+              <Text style={styles.label}>Nombre completo</Text>
+              <Input
+                placeholder="Ej. Juan Pérez"
+                value={values.fullName}
+                onChangeText={handleChange('fullName')}
+                error={errors.fullName}
+                autoCapitalize="words"
+                editable={!loading}
+                leftIcon={<Ionicons name="person-outline" size={20} color={theme.colors.text.tertiary} />}
+                focusColor={theme.colors.student.main}
+              />
 
-            <Input
-              label="Grade"
-              placeholder="e.g. 10th Grade"
-              value={values.grade}
-              onChangeText={handleChange('grade')}
-              error={errors.grade}
-              editable={!loading}
-              focusColor={theme.colors.student.main}
-            />
+              <Text style={styles.label}>Correo electrónico</Text>
+              <Input
+                placeholder="tu@email.com"
+                value={values.email}
+                onChangeText={handleChange('email')}
+                error={errors.email}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+                leftIcon={<Ionicons name="mail-outline" size={20} color={theme.colors.text.tertiary} />}
+                focusColor={theme.colors.student.main}
+              />
 
-            <Input
-              label="Password"
-              placeholder="Create a password"
-              value={values.password}
-              onChangeText={handleChange('password')}
-              error={errors.password}
-              secureTextEntry
-              editable={!loading}
-              focusColor={theme.colors.student.main}
-            />
+              <Text style={styles.label}>Grado</Text>
+              <Input
+                placeholder="Ej. 10mo Grado"
+                value={values.grade}
+                onChangeText={handleChange('grade')}
+                error={errors.grade}
+                editable={!loading}
+                leftIcon={<Ionicons name="ribbon-outline" size={20} color={theme.colors.text.tertiary} />}
+                focusColor={theme.colors.student.main}
+              />
 
-            <Input
-              label="Confirm Password"
-              placeholder="Re-enter your password"
-              value={values.confirmPassword}
-              onChangeText={handleChange('confirmPassword')}
-              error={errors.confirmPassword}
-              secureTextEntry
-              editable={!loading}
-              focusColor={theme.colors.student.main}
-            />
+              <Text style={styles.label}>Contraseña</Text>
+              <Input
+                placeholder="Mínimo 8 caracteres"
+                value={values.password}
+                onChangeText={handleChange('password')}
+                error={errors.password}
+                secureTextEntry
+                editable={!loading}
+                leftIcon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.text.tertiary} />}
+                focusColor={theme.colors.student.main}
+              />
 
-            {error && (
-              <View style={styles.errorContainer}>
-                <Input
-                  error={error}
-                  editable={false}
-                  containerStyle={styles.errorInput}
-                />
+              <Text style={styles.label}>Confirmar contraseña</Text>
+              <Input
+                placeholder="Repite tu contraseña"
+                value={values.confirmPassword}
+                onChangeText={handleChange('confirmPassword')}
+                error={errors.confirmPassword}
+                secureTextEntry
+                editable={!loading}
+                leftIcon={<Ionicons name="lock-closed-outline" size={20} color={theme.colors.text.tertiary} />}
+                focusColor={theme.colors.student.main}
+              />
+
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+
+              <Button
+                variant="primary"
+                size="large"
+                fullWidth
+                onPress={handleSubmit}
+                loading={loading}
+                style={styles.submitButton}
+              >
+                Crear Cuenta
+              </Button>
+
+              <View style={styles.loginPrompt}>
+                <Text style={styles.loginPromptText}>¿Ya tienes una cuenta? </Text>
+                <TouchableOpacity onPress={() => navigation.replace('StudentLogin')}>
+                  <Text style={styles.loginLink}>Inicia sesión aquí</Text>
+                </TouchableOpacity>
               </View>
-            )}
-
-            <Button
-              variant="primary"
-              size="large"
-              fullWidth
-              onPress={handleSubmit}
-              loading={loading}
-              style={[styles.submitButton, { backgroundColor: theme.colors.student.main }]}
-            >
-              Register
-            </Button>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -212,7 +228,7 @@ export default function StudentRegisterScreen(_props: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#F5F5F5',
   },
 
   keyboardView: {
@@ -221,51 +237,104 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: 24,
     paddingTop: 40,
     paddingBottom: 40,
-    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  header: {
-    alignItems: 'center',
-    marginBottom: 48,
+  container: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
 
-  emoji: {
-    fontSize: 80,
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
     marginBottom: 24,
   },
 
+  header: {
+    marginBottom: 32,
+  },
+
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: theme.colors.text.primary,
-    marginBottom: 16,
+    marginBottom: 12,
+    lineHeight: 34,
   },
 
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: theme.colors.text.secondary,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-    lineHeight: 24,
+    lineHeight: 22,
   },
 
   form: {
     width: '100%',
-    maxWidth: 400,
+  },
+
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.student.main,
+    marginBottom: 8,
+    marginTop: 4,
   },
 
   errorContainer: {
-    marginBottom: theme.spacing.base,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
   },
 
-  errorInput: {
-    marginBottom: 0,
+  errorText: {
+    color: '#C62828',
+    fontSize: 14,
+    textAlign: 'center',
   },
 
   submitButton: {
-    marginTop: theme.spacing.base,
+    marginTop: 24,
+    backgroundColor: theme.colors.student.main,
+    borderRadius: 28,
+    height: 56,
+    shadowColor: theme.colors.student.main,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
+  loginPrompt: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 24,
+  },
+
+  loginPromptText: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+  },
+
+  loginLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.student.main,
   },
 });

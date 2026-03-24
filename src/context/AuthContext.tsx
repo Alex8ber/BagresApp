@@ -197,11 +197,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const mockTeacher: Teacher = {
             id: mockUser.id,
             email: email,
-            fullName: 'Mock Teacher',
+            full_name: 'Mock Teacher',
             school: 'Development School',
             verified: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           };
           setProfile(mockTeacher);
           setRole('teacher');
@@ -209,10 +209,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const mockStudent: Student = {
             id: mockUser.id,
             email: email,
-            fullName: 'Mock Student',
+            full_name: 'Mock Student',
             grade: '10th Grade',
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           };
           setProfile(mockStudent);
           setRole('student');

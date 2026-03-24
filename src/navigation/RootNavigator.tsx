@@ -158,7 +158,7 @@ export function RootNavigator() {
         name="TeacherCreateClass"
         component={TeacherCreateClassScreen}
         options={{
-          title: 'Create Class',
+          title: 'Nueva Clase',
           headerStyle: {
             backgroundColor: colors.teacher.main,
           },
