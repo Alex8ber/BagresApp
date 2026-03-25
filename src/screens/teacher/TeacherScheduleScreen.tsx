@@ -80,6 +80,20 @@ export default function TeacherScheduleScreen({ navigation }: Props) {
     description: '',
   });
 
+  // Configure navigation header with add button
+  React.useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setModalVisible(true)}
+          style={{ marginRight: 15 }}
+        >
+          <Ionicons name="add" size={28} color="#4285F4" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
   const handleAddEvent = () => {
     if (!newEvent.title || !newEvent.date || !newEvent.time) {
       return; // Simple validation
@@ -165,22 +179,6 @@ export default function TeacherScheduleScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="#2D3748" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Schedule & Notifications</Text>
-        <TouchableOpacity
-          onPress={() => setModalVisible(true)}
-          style={styles.addButton}
-        >
-          <Ionicons name="add" size={24} color="#4285F4" />
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.infoBanner}>
         <Ionicons name="information-circle-outline" size={24} color="#4285F4" />
         <Text style={styles.bannerText}>
@@ -332,19 +330,6 @@ export default function TeacherScheduleScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAFBFD' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  backButton: { padding: 8, marginLeft: -8 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#2D3748' },
-  addButton: { padding: 8, marginRight: -8 },
   infoBanner: {
     flexDirection: 'row',
     backgroundColor: '#E8F0FE',

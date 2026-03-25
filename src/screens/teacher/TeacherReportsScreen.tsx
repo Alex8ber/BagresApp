@@ -184,17 +184,6 @@ export default function TeacherReportsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="#2D3748" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Test Reports</Text>
-        <View style={styles.placeholderIcon} />
-      </View>
-
       <View style={styles.infoBanner}>
         <Ionicons name="information-circle-outline" size={24} color="#4285F4" />
         <Text style={styles.bannerText}>
@@ -220,19 +209,6 @@ export default function TeacherReportsScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAFBFD' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  backButton: { padding: 8, marginLeft: -8 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#2D3748' },
-  placeholderIcon: { width: 40 },
   infoBanner: {
     flexDirection: 'row',
     backgroundColor: '#E8F0FE',

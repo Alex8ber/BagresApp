@@ -334,19 +334,6 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color="#2D3748" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {isPreviewMode ? 'Preview Test' : 'Create Maths Test'}
-          </Text>
-          <View style={{ width: 40 }} />
-        </View>
-
         {isPreviewMode ? renderPreviewMode() : renderEditMode()}
 
         <View style={styles.bottomBar}>
@@ -402,29 +389,7 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAFBFD' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#FAFBFD',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#2D3748' },
-  content: { flex: 1, paddingHorizontal: 20 },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
 
   card: {
     backgroundColor: '#FFF',
