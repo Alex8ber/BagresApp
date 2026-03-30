@@ -7,7 +7,7 @@
  * Requirements: 1.9, 2.1, 5.2, 5.9, 10.6, 10.14, 11.1, 11.9
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -17,10 +17,12 @@ import {
   FlatList, 
   TouchableOpacity,
   Alert,
-  Share
+  Share,
+  Image,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types/navigation';
 import type { TeacherTabScreenProps } from '@/types/navigation';
@@ -28,24 +30,11 @@ import { useTeacherClasses } from '@/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/styles';
 import type { Class } from '@/types/database';
+import type { Teacher } from '@/types/models';
+import { deleteClass, deleteClassImage } from '@/services';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type Props = TeacherTabScreenProps<'Classes'>;
-
-/**
- * Generate a random 6-character class code
- */
-const generateClassCode = (classId: string): string => {
-  // In production, this would be stored in the database
-  // For now, generate a consistent code based on the class ID
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    const index = (classId.charCodeAt(i % classId.length) + i) % chars.length;
-    code += chars[index];
-  }
-  return code;
-};
 
 /**
  * TeacherClassesScreen Component
@@ -55,8 +44,19 @@ const generateClassCode = (classId: string): string => {
 export default function TeacherClassesScreen(_props: Props) {
   const navigation = useNavigation<NavigationProp>();
   const { profile } = useAuth();
+  const teacherProfile = profile as Teacher | null;
   const { classes, loading, error, refetch } = useTeacherClasses();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [deletingClass, setDeletingClass] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [classToDelete, setClassToDelete] = useState<Class | null>(null);
+
+  // Refetch classes when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   const handleCopyCode = (code: string) => {
     // In a real app, use Clipboard API
@@ -77,6 +77,49 @@ export default function TeacherClassesScreen(_props: Props) {
 
   const handleCreateClass = () => {
     navigation.navigate('TeacherCreateClass', {});
+  };
+
+  const handleDeleteClass = (classItem: Class) => {
+    setClassToDelete(classItem);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteClass = async () => {
+    if (!classToDelete) return;
+
+    setDeletingClass(classToDelete.id);
+    setShowDeleteModal(false);
+
+    try {
+      // Delete class image if exists
+      if (classToDelete.class_image_url) {
+        try {
+          await deleteClassImage(classToDelete.class_image_url);
+        } catch (imgError) {
+          console.error('Failed to delete class image:', imgError);
+          // Continue with class deletion even if image deletion fails
+        }
+      }
+
+      // Delete class from database
+      await deleteClass(classToDelete.id);
+
+      // Refetch classes to update the list
+      await refetch();
+
+      Alert.alert('Clase Eliminada', `La clase "${classToDelete.name}" ha sido eliminada exitosamente.`);
+    } catch (err) {
+      console.error('Failed to delete class:', err);
+      Alert.alert('Error', 'No se pudo eliminar la clase. Intenta de nuevo.');
+    } finally {
+      setDeletingClass(null);
+      setClassToDelete(null);
+    }
+  };
+
+  const cancelDeleteClass = () => {
+    setShowDeleteModal(false);
+    setClassToDelete(null);
   };
 
   if (loading) {
@@ -105,15 +148,33 @@ export default function TeacherClassesScreen(_props: Props) {
   }
 
   const renderClassItem = ({ item }: { item: Class }) => {
-    const classCode = generateClassCode(item.id);
+    const classCode = item.class_code;
     const isCopied = copiedCode === classCode;
+    const isDeleting = deletingClass === item.id;
 
     return (
       <View style={styles.classCard}>
+        {/* Delete Button */}
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteClass(item)}
+          disabled={isDeleting}
+        >
+          {isDeleting ? (
+            <ActivityIndicator size="small" color="#E74C3C" />
+          ) : (
+            <Ionicons name="close-circle" size={28} color="#E74C3C" />
+          )}
+        </TouchableOpacity>
+
         {/* Class Header */}
         <View style={styles.classHeader}>
           <View style={styles.classIconContainer}>
-            <Text style={styles.classIcon}>📚</Text>
+            {item.class_image_url ? (
+              <Image source={{ uri: item.class_image_url }} style={styles.classIconImage} />
+            ) : (
+              <Text style={styles.classIcon}>{item.class_icon || '📚'}</Text>
+            )}
           </View>
           <View style={styles.classHeaderInfo}>
             <Text style={styles.className}>{item.name}</Text>
@@ -206,7 +267,11 @@ export default function TeacherClassesScreen(_props: Props) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👨‍🏫</Text>
+            {teacherProfile?.avatarUrl ? (
+              <Image source={{ uri: teacherProfile.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>👨‍🏫</Text>
+            )}
           </View>
           <View>
             <Text style={styles.greeting}>MIS CLASES</Text>
@@ -244,6 +309,46 @@ export default function TeacherClassesScreen(_props: Props) {
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={cancelDeleteClass}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.deleteIconContainer}>
+              <Ionicons name="warning" size={64} color="#E74C3C" />
+            </View>
+            
+            <Text style={styles.modalTitle}>¿Eliminar Clase?</Text>
+            <Text style={styles.modalMessage}>
+              ¿Estás seguro de que deseas eliminar la clase "{classToDelete?.name}"?
+            </Text>
+            <Text style={styles.modalWarning}>
+              Esta acción no se puede deshacer.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={cancelDeleteClass}
+              >
+                <Text style={styles.modalButtonCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.modalButtonDelete}
+                onPress={confirmDeleteClass}
+              >
+                <Text style={styles.modalButtonDeleteText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -277,6 +382,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     fontSize: 24,
@@ -405,6 +515,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+    position: 'relative',
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   classHeader: {
     flexDirection: 'row',
@@ -422,6 +550,11 @@ const styles = StyleSheet.create({
   },
   classIcon: {
     fontSize: 28,
+  },
+  classIconImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   classHeaderInfo: {
     flex: 1,
@@ -541,5 +674,79 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  // Delete Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  deleteIconContainer: {
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  modalWarning: {
+    fontSize: 14,
+    color: '#E74C3C',
+    textAlign: 'center',
+    marginBottom: 24,
+    fontWeight: '600',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalButtonCancel: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalButtonCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+  modalButtonDelete: {
+    flex: 1,
+    backgroundColor: '#E74C3C',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalButtonDeleteText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

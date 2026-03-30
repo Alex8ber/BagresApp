@@ -106,17 +106,17 @@ export default function StudentLoginScreen({ navigation }: Props) {
 
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Hola, estudiante</Text>
+              <Text style={styles.title}>¡Únete a tu clase!</Text>
               <Text style={styles.subtitle}>
-                Ingresa tus datos para unirte{'\n'}a una clase
+                Ingresa tu nombre y el código{'\n'}que te dio tu profesor
               </Text>
             </View>
 
             {/* Form */}
             <View style={styles.form}>
-              <Text style={styles.label}>Nombre / Usuario</Text>
+              <Text style={styles.label}>Tu nombre</Text>
               <Input
-                placeholder="Ej. Juan Pérez"
+                placeholder="Ej: Juan Pérez"
                 value={values.username}
                 onChangeText={handleChange('username')}
                 error={errors.username}
@@ -126,11 +126,11 @@ export default function StudentLoginScreen({ navigation }: Props) {
                 focusColor={theme.colors.student.main}
               />
 
-              <Text style={styles.label}>Código de Clase</Text>
+              <Text style={styles.label}>Código de clase</Text>
               <Input
-                placeholder="6 caracteres (Ej. AB12CD)"
+                placeholder="ABC123"
                 value={values.classCode}
-                onChangeText={handleChange('classCode')}
+                onChangeText={(text) => handleChange('classCode')(text.toUpperCase())}
                 error={errors.classCode}
                 maxLength={6}
                 autoCapitalize="characters"
@@ -153,16 +153,18 @@ export default function StudentLoginScreen({ navigation }: Props) {
                 loading={loading}
                 style={styles.submitButton}
               >
-                Iniciar Sesión
+                Unirme a la clase
               </Button>
 
-              {/* Register Link */}
-              <View style={styles.registerPrompt}>
-                <Text style={styles.registerPromptText}>¿No tienes una cuenta? </Text>
-                <TouchableOpacity onPress={handleGoToRegister} disabled={loading}>
-                  <Text style={styles.registerLink}>Regístrate aquí</Text>
-                </TouchableOpacity>
-              </View>
+              {/* Back Button */}
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+                disabled={loading}
+              >
+                <Ionicons name="arrow-back" size={20} color={theme.colors.student.main} />
+                <Text style={styles.backButtonText}>Volver</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -178,7 +180,7 @@ export default function StudentLoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F0F9F4',
   },
 
   keyboardView: {
@@ -273,21 +275,18 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  registerPrompt: {
+  backButton: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 16,
+    paddingVertical: 8,
+    gap: 8,
   },
 
-  registerPromptText: {
+  backButtonText: {
     fontSize: 14,
-    color: theme.colors.text.secondary,
-  },
-
-  registerLink: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: theme.colors.student.main,
   },
 });

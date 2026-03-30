@@ -52,25 +52,45 @@ export async function signIn(email: string, password: string): Promise<User> {
  */
 export async function signUp(email: string, password: string): Promise<User> {
   try {
+    console.log('🔐 Attempting signup with:', { email, passwordLength: password.length });
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          email_confirm: true, // Auto-confirm for development
+        },
+      }
     });
 
     if (error) {
-      throw new AuthenticationError(error.message);
+      console.error('❌ Signup error:', error);
+      
+      // Handle specific error cases
+      if (error.message.includes('rate limit')) {
+        throw new AuthenticationError('Has intentado registrarte demasiadas veces. Por favor espera unos minutos e intenta de nuevo.');
+      }
+      
+      if (error.message.includes('invalid')) {
+        throw new AuthenticationError('El formato del email no es válido. Intenta con otro email.');
+      }
+      
+      throw new AuthenticationError(`Error al registrarse: ${error.message}`);
     }
 
     if (!data.user) {
-      throw new AuthenticationError('No user data returned');
+      throw new AuthenticationError('No se recibieron datos del usuario');
     }
 
+    console.log('✅ Signup successful:', data.user.id);
     return data.user;
   } catch (error) {
+    console.error('❌ Signup exception:', error);
     if (error instanceof AuthenticationError) {
       throw error;
     }
-    throw new NetworkError('Failed to connect to authentication service');
+    throw new NetworkError('Error de conexión con el servicio de autenticación');
   }
 }
 
@@ -267,5 +287,43 @@ export async function getStudentProfile(userId: string): Promise<Student | null>
       throw error;
     }
     throw new NetworkError('Failed to fetch student profile');
+  }
+}
+
+/**
+ * Update teacher profile
+ * 
+ * @param userId - The teacher's user ID
+ * @param updates - Partial teacher data to update
+ * @returns The updated teacher profile
+ * @throws {DatabaseError} If database operation fails
+ * @throws {NetworkError} If network request fails
+ */
+export async function updateTeacherProfile(
+  userId: string,
+  updates: Partial<Omit<Teacher, 'id' | 'created_at' | 'updated_at'>>
+): Promise<Teacher> {
+  try {
+    const { data, error } = await supabase
+      .from('teachers')
+      .update(updates as any)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new DatabaseError(error.message);
+    }
+
+    if (!data) {
+      throw new DatabaseError('No teacher data returned');
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to update teacher profile');
   }
 }

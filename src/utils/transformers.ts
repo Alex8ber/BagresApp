@@ -42,6 +42,7 @@ export function transformTeacher(dbTeacher: DbTeacher): Teacher {
     fullName: dbTeacher.full_name,
     school: dbTeacher.school,
     verified: dbTeacher.verified,
+    avatarUrl: dbTeacher.avatar_url,
     subjects: [], // Load from relationship if needed
     createdAt: new Date(dbTeacher.created_at),
     updatedAt: new Date(dbTeacher.updated_at),
@@ -67,10 +68,8 @@ export function transformTeacher(dbTeacher: DbTeacher): Teacher {
 export function transformStudent(dbStudent: DbStudent): Student {
   return {
     id: dbStudent.id,
-    email: dbStudent.email,
     fullName: dbStudent.full_name,
-    grade: dbStudent.grade,
-    enrolledClasses: [], // Load from relationship if needed
+    classId: dbStudent.class_id,
     createdAt: new Date(dbStudent.created_at),
     updatedAt: new Date(dbStudent.updated_at),
   };

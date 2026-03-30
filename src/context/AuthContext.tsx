@@ -175,6 +175,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Check if we're in development mode without backend
       const isDevelopmentMode = !process.env.EXPO_PUBLIC_SUPABASE_URL || 
+                                process.env.EXPO_PUBLIC_SUPABASE_URL === 'https://your-project.supabase.co' ||
                                 process.env.EXPO_PUBLIC_SUPABASE_URL === 'your-project-url.supabase.co';
 
       if (isDevelopmentMode) {
@@ -197,22 +198,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const mockTeacher: Teacher = {
             id: mockUser.id,
             email: email,
-            full_name: 'Mock Teacher',
+            fullName: 'Mock Teacher',
             school: 'Development School',
             verified: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            avatarUrl: null,
+            subjects: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
           };
           setProfile(mockTeacher);
           setRole('teacher');
         } else if (userRole === 'student') {
           const mockStudent: Student = {
             id: mockUser.id,
-            email: email,
-            full_name: 'Mock Student',
-            grade: '10th Grade',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            fullName: 'Mock Student',
+            classId: 'mock-class-id',
+            createdAt: new Date(),
+            updatedAt: new Date(),
           };
           setProfile(mockStudent);
           setRole('student');
@@ -269,9 +271,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else if (userRole === 'student') {
         const studentData: StudentInsert = {
           id: newUser.id,
-          email: newUser.email!,
+          class_id: profileData.classId, // Will be set when joining a class
           full_name: profileData.fullName,
-          grade: profileData.grade,
         };
         const studentProfile = await authService.createStudentProfile(newUser.id, studentData);
         setProfile(transformStudent(studentProfile));
@@ -294,15 +295,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true);
       setError(null);
 
-      await authService.signOut();
-      
+      // Clear state first to trigger navigation immediately
       setUser(null);
       setProfile(null);
       setRole(null);
+      
+      // Then call Supabase signOut
+      await authService.signOut();
     } catch (err) {
+      console.error('Sign out error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign out';
       setError(errorMessage);
-      throw err;
+      // Even if signOut fails, keep state cleared
     } finally {
       setLoading(false);
     }

@@ -17,7 +17,6 @@
  */
 export interface BaseUser {
   id: string;
-  email: string;
   fullName: string;
   createdAt: Date;
   updatedAt: Date;
@@ -30,20 +29,21 @@ export interface BaseUser {
  * Extends BaseUser with school, verification status, and subjects.
  */
 export interface Teacher extends BaseUser {
+  email: string;
   school: string;
   verified: boolean;
+  avatarUrl: string | null;
   subjects: string[];
 }
 
 /**
  * Student
  * 
- * Represents a student user with grade level and enrolled classes.
- * Extends BaseUser with student-specific properties.
+ * Represents a student user with their class enrollment.
+ * Students don't have separate accounts - they join via class code.
  */
 export interface Student extends BaseUser {
-  grade: string;
-  enrolledClasses: string[];
+  classId: string;
 }
 
 /**

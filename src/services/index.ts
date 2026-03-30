@@ -23,7 +23,16 @@ export {
   createStudentProfile,
   getTeacherProfile,
   getStudentProfile,
+  updateTeacherProfile,
 } from './supabase/auth';
+
+// Storage services
+export {
+  uploadAvatar,
+  deleteAvatar,
+  uploadClassImage,
+  deleteClassImage,
+} from './supabase/storage';
 
 // Classes services
 export {

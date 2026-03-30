@@ -11,6 +11,7 @@ export interface Teacher {
   full_name: string;
   school: string;
   verified: boolean;
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,9 +21,11 @@ export interface Teacher {
  * 
  * Type for inserting a new teacher record.
  * ID is optional since it can be auto-generated or manually set.
+ * avatar_url is optional since it can be added later.
  */
-export type TeacherInsert = Omit<Teacher, 'created_at' | 'updated_at'> & {
+export type TeacherInsert = Omit<Teacher, 'created_at' | 'updated_at' | 'avatar_url'> & {
   id?: string;
+  avatar_url?: string | null;
 };
 
 /**
@@ -37,12 +40,12 @@ export type TeacherUpdate = Partial<Omit<Teacher, 'id' | 'created_at' | 'updated
  * Student Entity
  * 
  * Represents a student user in the system.
+ * Students don't have auth accounts - they join classes with name + class code.
  */
 export interface Student {
   id: string;
-  email: string;
+  class_id: string;
   full_name: string;
-  grade: string;
   created_at: string;
   updated_at: string;
 }
@@ -51,7 +54,7 @@ export interface Student {
  * Student Insert Type
  * 
  * Type for inserting a new student record.
- * ID is optional since it can be auto-generated or manually set.
+ * ID is optional since it can be auto-generated.
  */
 export type StudentInsert = Omit<Student, 'created_at' | 'updated_at'> & {
   id?: string;
@@ -77,6 +80,9 @@ export interface Class {
   subject: string;
   grade: string;
   description: string | null;
+  class_code: string;
+  class_image_url: string | null;
+  class_icon: string;
   created_at: string;
   updated_at: string;
 }
@@ -87,7 +93,7 @@ export interface Class {
  * Type for inserting a new class record.
  * ID is optional since it can be auto-generated.
  */
-export type ClassInsert = Omit<Class, 'created_at' | 'updated_at'> & {
+export type ClassInsert = Omit<Class, 'id' | 'created_at' | 'updated_at'> & {
   id?: string;
 };
 

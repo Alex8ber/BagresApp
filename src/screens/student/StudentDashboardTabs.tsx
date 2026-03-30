@@ -15,9 +15,7 @@ import type { StudentTabParamList } from '@/types/navigation';
 // Student Screens
 import StudentMainScreen from './StudentMainScreen';
 import StudentProfileScreen from './StudentProfileScreen';
-
-// Placeholder screens - to be created
-const StudentLibraryScreen = () => null;
+import StudentLibraryScreen from './StudentLibraryScreen';
 
 const Tab = createBottomTabNavigator<StudentTabParamList>();
 
