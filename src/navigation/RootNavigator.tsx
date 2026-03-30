@@ -29,6 +29,9 @@ import TeacherCreateClassScreen from '@/screens/teacher/TeacherCreateClassScreen
 import TeacherReportsScreen from '@/screens/teacher/TeacherReportsScreen';
 import TeacherScheduleScreen from '@/screens/teacher/TeacherScheduleScreen';
 
+// Student Screens
+import { StudentDashboardTabs } from '@/screens/student';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
@@ -54,138 +57,151 @@ export function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator
-      initialRouteName={user && role === 'teacher' ? 'TeacherDashboard' : 'RoleSelection'}
-      screenOptions={defaultScreenOptions}
-    >
-      {/* Auth Screens */}
-      <Stack.Screen
-        name="RoleSelection"
-        component={RoleSelectionScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      
-      <Stack.Screen
-        name="StudentLogin"
-        component={StudentLoginScreen}
-        options={{
-          title: 'Student Login',
-          headerStyle: {
-            backgroundColor: colors.student.main,
-          },
-        }}
-      />
-      
-      <Stack.Screen
-        name="StudentRegister"
-        component={StudentRegisterScreen}
-        options={{
-          title: 'Student Registration',
-          headerStyle: {
-            backgroundColor: colors.student.main,
-          },
-        }}
-      />
-      
-      <Stack.Screen
-        name="TeacherLogin"
-        component={TeacherLoginScreen}
-        options={{
-          title: 'Teacher Login',
-          headerStyle: {
-            backgroundColor: colors.teacher.main,
-          },
-        }}
-      />
-      
-      <Stack.Screen
-        name="TeacherRegister"
-        component={TeacherRegisterScreen}
-        options={{
-          title: 'Teacher Registration',
-          headerStyle: {
-            backgroundColor: colors.teacher.main,
-          },
-        }}
-      />
-      
-      <Stack.Screen
-        name="TeacherVerification"
-        component={TeacherVerificationScreen}
-        options={{
-          title: 'Verify Email',
-          headerStyle: {
-            backgroundColor: colors.teacher.main,
-          },
-        }}
-      />
+    <Stack.Navigator screenOptions={defaultScreenOptions}>
+      {!user ? (
+        // Auth Stack - shown when not authenticated
+        <>
+          <Stack.Screen
+            name="RoleSelection"
+            component={RoleSelectionScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          
+          <Stack.Screen
+            name="StudentLogin"
+            component={StudentLoginScreen}
+            options={{
+              title: 'Student Login',
+              headerStyle: {
+                backgroundColor: colors.student.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="StudentRegister"
+            component={StudentRegisterScreen}
+            options={{
+              title: 'Student Registration',
+              headerStyle: {
+                backgroundColor: colors.student.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherLogin"
+            component={TeacherLoginScreen}
+            options={{
+              title: 'Teacher Login',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherRegister"
+            component={TeacherRegisterScreen}
+            options={{
+              title: 'Teacher Registration',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherVerification"
+            component={TeacherVerificationScreen}
+            options={{
+              title: 'Verify Email',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+        </>
+      ) : role === 'teacher' ? (
+        // Teacher Stack - shown when authenticated as teacher
+        <>
+          <Stack.Screen
+            name="TeacherDashboard"
+            component={TeacherDashboardTabs}
+            options={{
+              headerShown: false,
+            }}
+          />
 
-      {/* Teacher Dashboard */}
-      <Stack.Screen
-        name="TeacherDashboard"
-        component={TeacherDashboardTabs}
-        options={{
-          headerShown: false,
-        }}
-      />
-
-      {/* Teacher Feature Screens */}
-      <Stack.Screen
-        name="TeacherStudentsList"
-        component={TeacherStudentsListScreen}
-        options={{
-          title: 'Students',
-          headerStyle: {
-            backgroundColor: colors.teacher.main,
-          },
-        }}
-      />
-      
-      <Stack.Screen
-        name="TeacherCreateTest"
-        component={TeacherCreateTestScreen}
-        options={{
-          title: 'Create Test',
-          headerStyle: {
-            backgroundColor: colors.teacher.main,
-          },
-        }}
-      />
-      
-      <Stack.Screen
-        name="TeacherCreateClass"
-        component={TeacherCreateClassScreen}
-        options={{
-          title: 'Nueva Clase',
-          headerStyle: {
-            backgroundColor: colors.teacher.main,
-          },
-        }}
-      />
-      
-      <Stack.Screen
-        name="TeacherReports"
-        component={TeacherReportsScreen}
-        options={{
-          title: 'Reports',
-          headerStyle: {
-            backgroundColor: colors.teacher.main,
-          },
-        }}
-      />
-      
-      <Stack.Screen
-        name="TeacherSchedule"
-        component={TeacherScheduleScreen}
-        options={{
-          title: 'Schedule',
-          headerStyle: {
-            backgroundColor: colors.teacher.main,
-          },
-        }}
-      />
+          <Stack.Screen
+            name="TeacherStudentsList"
+            component={TeacherStudentsListScreen}
+            options={{
+              title: 'Students',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherCreateTest"
+            component={TeacherCreateTestScreen}
+            options={{
+              title: 'Create Test',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherCreateClass"
+            component={TeacherCreateClassScreen}
+            options={{
+              title: 'Nueva Clase',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherReports"
+            component={TeacherReportsScreen}
+            options={{
+              title: 'Reports',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherSchedule"
+            component={TeacherScheduleScreen}
+            options={{
+              title: 'Schedule',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+        </>
+      ) : role === 'student' ? (
+        // Student Stack - shown when authenticated as student
+        <>
+          <Stack.Screen
+            name="StudentDashboard"
+            component={StudentDashboardTabs}
+            options={{
+              headerShown: false,
+            }}
+          />
+        </>
+      ) : null}
     </Stack.Navigator>
   );
 }
