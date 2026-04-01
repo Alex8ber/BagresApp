@@ -144,8 +144,10 @@ export default function TeacherLibraryScreen({ navigation }: Props) {
   };
 
   const handleOpenQuiz = (quiz: typeof quizzes[0]) => {
-    // TODO: Navigate to quiz detail/edit screen
-    alert(`Abrir: ${quiz.title}\n\nPróximamente: Editar preguntas y ver resultados`);
+    navigation.navigate('QuizDetail', {
+      quizId: quiz.id,
+      classId: quiz.class_id,
+    });
   };
 
   const handleDeleteMaterial = async (material: typeof materials[0]) => {

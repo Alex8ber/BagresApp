@@ -21,6 +21,9 @@ export type RootStackParamList = {
   TeacherCreateClass: undefined;
   TeacherCreateMaterial: { classId: string; className: string };
   TeacherCreateQuiz: { classId: string; className: string };
+  QuizEditor: { quizId: string; classId: string; className: string };
+  QuizDetail: { quizId: string; classId: string };
+  StudentQuiz: { quizId: string };
   TeacherMaterialDetail: { materialId: string; classId: string };
   TeacherReports: { classId?: string };
   TeacherSchedule: undefined;

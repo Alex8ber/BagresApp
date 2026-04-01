@@ -75,11 +75,26 @@ export {
   createQuestion,
   getQuestionOptions,
   createOption,
+  updateOption,
+  deleteOption,
   getQuizWithQuestions,
+  updateQuestionOrder,
+  deleteQuestion,
+  updateQuestion,
 } from './supabase/quizzes';
+
+// Auto-submit services
+export {
+  submitQuiz,
+  isQuizAvailable,
+} from './autoSubmit';
 
 // Export types
 export type {
   QuestionWithOptions,
   QuizWithQuestions,
 } from './supabase/quizzes';
+
+export type {
+  QuizSubmission,
+} from './autoSubmit';

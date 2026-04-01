@@ -6,3 +6,4 @@
 
 export { default as StudentDashboardTabs } from './StudentDashboardTabs';
 export { default as StudentMainScreen } from './StudentMainScreen';
+export { default as StudentQuizInterface } from './StudentQuizInterface';

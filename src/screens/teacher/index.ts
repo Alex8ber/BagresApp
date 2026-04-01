@@ -22,3 +22,4 @@ export { default as TeacherCreateTestScreen } from './TeacherCreateTestScreen';
 export { default as TeacherCreateClassScreen } from './TeacherCreateClassScreen';
 export { default as TeacherReportsScreen } from './TeacherReportsScreen';
 export { default as TeacherScheduleScreen } from './TeacherScheduleScreen';
+export { default as QuizEditorScreen } from './QuizEditorScreen';

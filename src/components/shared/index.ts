@@ -14,3 +14,5 @@ export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from '.
 export { Input, type InputProps } from './Input';
 export { Card, type CardProps, type CardVariant } from './Card';
 export { QuestionTypeSelector, type QuestionType, type QuestionTypeSelectorProps } from './QuestionTypeSelector';
+export { DeadlineManager, type DeadlineManagerProps } from './DeadlineManager';
+export { QuestionCard, type QuestionCardProps, type QuestionWithOptions, type QuizOption } from './QuestionCard';

@@ -72,7 +72,7 @@ export default function TeacherCreateQuizScreen({ navigation, route }: Props) {
       try {
         setError(undefined);
 
-        await createQuiz({
+        const newQuiz = await createQuiz({
           class_id: classId,
           title: data.title,
           description: data.description || null,
@@ -83,8 +83,12 @@ export default function TeacherCreateQuizScreen({ navigation, route }: Props) {
           is_published: false,
         });
 
-        // Regresar a Library automáticamente
-        navigation.goBack();
+        // Navigate to QuizEditor to add questions
+        navigation.replace('QuizEditor', {
+          quizId: newQuiz.id,
+          classId: classId,
+          className: className,
+        });
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Error al crear el cuestionario';
         setError(errorMessage);

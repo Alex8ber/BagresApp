@@ -99,36 +99,11 @@ export function useTeacherClasses(): UseTeacherClassesReturn {
     try {
       const fetchedClasses = await getClasses(user.id);
       setClasses(fetchedClasses);
+      setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch classes';
-      console.warn('Failed to fetch classes, using mock data:', errorMessage);
-      
-      // Use mock data instead of showing error
-      setClasses([
-        {
-          id: '1',
-          teacher_id: user.id,
-          name: 'Matemáticas 2do Grado',
-          subject: 'Matemáticas',
-          grade: '2do',
-          description: 'Clase de matemáticas para segundo grado',
-          class_code: 'MATH2A',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          teacher_id: user.id,
-          name: 'Ciencias 1er Grado',
-          subject: 'Ciencias',
-          grade: '1ro',
-          description: 'Introducción a las ciencias naturales',
-          class_code: 'SCI1B',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ]);
-      setError(null); // Clear error since we're using mock data
+      setError(errorMessage);
+      setClasses([]);
     } finally {
       setLoading(false);
     }

@@ -28,6 +28,8 @@ import TeacherCreateTestScreen from '@/screens/teacher/TeacherCreateTestScreen';
 import TeacherCreateClassScreen from '@/screens/teacher/TeacherCreateClassScreen';
 import TeacherCreateMaterialScreen from '@/screens/teacher/TeacherCreateMaterialScreen';
 import TeacherCreateQuizScreen from '@/screens/teacher/TeacherCreateQuizScreen';
+import QuizEditorScreen from '@/screens/teacher/QuizEditorScreen';
+import QuizDetailScreen from '@/screens/teacher/QuizDetailScreen';
 import TeacherMaterialDetailScreen from '@/screens/teacher/TeacherMaterialDetailScreen';
 import TeacherReportsScreen from '@/screens/teacher/TeacherReportsScreen';
 import TeacherScheduleScreen from '@/screens/teacher/TeacherScheduleScreen';
@@ -187,6 +189,28 @@ export function RootNavigator() {
             component={TeacherCreateQuizScreen}
             options={{
               title: 'Nuevo Cuestionario',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="QuizEditor"
+            component={QuizEditorScreen}
+            options={{
+              title: 'Editor de Preguntas',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="QuizDetail"
+            component={QuizDetailScreen}
+            options={{
+              title: 'Detalle del Cuestionario',
               headerStyle: {
                 backgroundColor: colors.teacher.main,
               },
