@@ -32,6 +32,8 @@ export {
   deleteAvatar,
   uploadClassImage,
   deleteClassImage,
+  uploadMaterialFile,
+  deleteMaterialFile,
 } from './supabase/storage';
 
 // Classes services
@@ -49,4 +51,35 @@ export {
   getStudents,
   getStudentsByClass,
   updateStudent,
+  joinClassWithCode,
+  getStudentById,
 } from './supabase/students';
+
+// Materials services
+export {
+  getClassMaterials,
+  getTeacherMaterials,
+  createMaterial,
+  updateMaterial,
+  deleteMaterial,
+} from './supabase/materials';
+
+// Quizzes services
+export {
+  getClassQuizzes,
+  getTeacherQuizzes,
+  createQuiz,
+  updateQuiz,
+  deleteQuiz,
+  getQuizQuestions,
+  createQuestion,
+  getQuestionOptions,
+  createOption,
+  getQuizWithQuestions,
+} from './supabase/quizzes';
+
+// Export types
+export type {
+  QuestionWithOptions,
+  QuizWithQuestions,
+} from './supabase/quizzes';

@@ -8,7 +8,7 @@
  * 
  * @example
  * ```tsx
- * import { useAuth, useForm, useTeacherClasses } from '@/hooks';
+ * import { useAuth, useForm, useTeacherClasses, useLibrary } from '@/hooks';
  * ```
  */
 
@@ -23,3 +23,6 @@ export type { UserRole, AuthContextState, AuthContextActions, AuthContextValue }
 // Teacher classes hook
 export { useTeacherClasses } from './useTeacherClasses';
 export type { UseTeacherClassesReturn } from './useTeacherClasses';
+
+// Library hook
+export { useLibrary } from './useLibrary';

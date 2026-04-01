@@ -153,3 +153,79 @@ export async function deleteClassImage(imageUrl: string): Promise<void> {
     console.error('Error deleting class image:', error);
   }
 }
+
+/**
+ * Upload a material file to Supabase Storage
+ * 
+ * @param classId - The class ID
+ * @param file - The file to upload (URI from document picker)
+ * @param fileName - The original file name
+ * @param fileType - The file MIME type
+ * @returns The public URL of the uploaded file
+ */
+export async function uploadMaterialFile(
+  classId: string,
+  file: string,
+  fileName: string,
+  fileType: string
+): Promise<string> {
+  try {
+    // Fetch the file from the URI
+    const response = await fetch(file);
+    const blob = await response.blob();
+
+    // Generate unique file name
+    const timestamp = Date.now();
+    const extension = fileName.split('.').pop() || 'file';
+    const uniqueFileName = `material-${classId}-${timestamp}.${extension}`;
+    const filePath = `materials/${uniqueFileName}`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('materials')
+      .upload(filePath, blob, {
+        contentType: fileType,
+        upsert: false,
+      });
+
+    if (error) {
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('materials')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error('Error uploading material file:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a material file from Supabase Storage
+ * 
+ * @param fileUrl - The URL of the material file to delete
+ */
+export async function deleteMaterialFile(fileUrl: string): Promise<void> {
+  try {
+    // Extract file path from URL
+    const urlParts = fileUrl.split('/materials/');
+    if (urlParts.length < 2) {
+      return;
+    }
+    const filePath = `materials/${urlParts[1]}`;
+
+    const { error } = await supabase.storage
+      .from('materials')
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Error deleting material file:', error);
+    }
+  } catch (error) {
+    console.error('Error deleting material file:', error);
+  }
+}

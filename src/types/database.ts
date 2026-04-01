@@ -138,9 +138,118 @@ export interface Database {
         Insert: ClassInsert;
         Update: ClassUpdate;
       };
+      class_materials: {
+        Row: ClassMaterial;
+        Insert: ClassMaterialInsert;
+        Update: ClassMaterialUpdate;
+      };
+      quizzes: {
+        Row: Quiz;
+        Insert: QuizInsert;
+        Update: QuizUpdate;
+      };
+      quiz_questions: {
+        Row: QuizQuestion;
+        Insert: QuizQuestionInsert;
+        Update: QuizQuestionUpdate;
+      };
+      quiz_options: {
+        Row: QuizOption;
+        Insert: QuizOptionInsert;
+        Update: Partial<QuizOption>;
+      };
     };
   };
 }
+
+/**
+ * Class Material Entity
+ * 
+ * Represents educational materials for classes.
+ */
+export interface ClassMaterial {
+  id: string;
+  class_id: string;
+  title: string;
+  description: string | null;
+  material_type: 'pdf' | 'video' | 'document' | 'link' | 'image';
+  file_url: string | null;
+  available_from: string | null;
+  available_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ClassMaterialInsert = Omit<ClassMaterial, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+};
+
+export type ClassMaterialUpdate = Partial<Omit<ClassMaterial, 'id' | 'created_at' | 'updated_at'>>;
+
+/**
+ * Quiz Entity
+ * 
+ * Represents quizzes/tests for classes.
+ */
+export interface Quiz {
+  id: string;
+  class_id: string;
+  title: string;
+  description: string | null;
+  duration_minutes: number | null;
+  passing_score: number;
+  available_from: string | null;
+  available_until: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuizInsert = Omit<Quiz, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+};
+
+export type QuizUpdate = Partial<Omit<Quiz, 'id' | 'created_at' | 'updated_at'>>;
+
+/**
+ * Quiz Question Entity
+ * 
+ * Represents questions in quizzes.
+ */
+export interface QuizQuestion {
+  id: string;
+  quiz_id: string;
+  question_text: string;
+  question_type: 'single_choice' | 'multiple_choice' | 'open_ended';
+  points: number;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuizQuestionInsert = Omit<QuizQuestion, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+};
+
+export type QuizQuestionUpdate = Partial<Omit<QuizQuestion, 'id' | 'created_at' | 'updated_at'>>;
+
+/**
+ * Quiz Option Entity
+ * 
+ * Represents answer options for quiz questions.
+ */
+export interface QuizOption {
+  id: string;
+  question_id: string;
+  option_text: string;
+  is_correct: boolean;
+  order_index: number;
+  created_at: string;
+}
+
+export type QuizOptionInsert = Omit<QuizOption, 'id' | 'created_at'> & {
+  id?: string;
+};
 
 /**
  * Typed Supabase Client

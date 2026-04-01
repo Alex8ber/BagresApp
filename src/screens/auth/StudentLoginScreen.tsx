@@ -34,12 +34,12 @@ import type { RootStackScreenProps } from '@/types/navigation';
 type Props = RootStackScreenProps<'StudentLogin'>;
 
 interface StudentLoginFormData {
-  username: string;
+  fullName: string;
   classCode: string;
 }
 
 interface StudentLoginFormErrors {
-  username?: string;
+  fullName?: string;
   classCode?: string;
 }
 
@@ -53,20 +53,22 @@ export default function StudentLoginScreen({ navigation }: Props) {
 
   const { values, errors, handleChange, handleSubmit } = useForm<StudentLoginFormData>({
     initialValues: {
-      username: '',
+      fullName: '',
       classCode: '',
     },
     validate: (values) => {
       const errors: StudentLoginFormErrors = {};
       
-      const usernameError = validateRequired(values.username, 'Name / Username');
-      if (usernameError) {
-        errors.username = usernameError;
+      const nameError = validateRequired(values.fullName, 'Nombre');
+      if (nameError) {
+        errors.fullName = nameError;
       }
       
-      const classCodeError = validateRequired(values.classCode, 'Class Code');
+      const classCodeError = validateRequired(values.classCode, 'Código de clase');
       if (classCodeError) {
         errors.classCode = classCodeError;
+      } else if (values.classCode.length !== 6) {
+        errors.classCode = 'El código debe tener 6 caracteres';
       }
       
       return errors;
@@ -74,18 +76,14 @@ export default function StudentLoginScreen({ navigation }: Props) {
     onSubmit: async (data) => {
       try {
         setError(undefined);
-        // For student login, we use username as email placeholder
-        await signIn(data.username, data.classCode, 'student');
+        // For student login, pass full name and class code
+        await signIn(data.fullName, data.classCode, 'student');
         // Navigation is handled by auth state change
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Login failed');
+        setError(err instanceof Error ? err.message : 'Error al unirse a la clase');
       }
     },
   });
-
-  const handleGoToRegister = () => {
-    navigation.replace('StudentRegister');
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -117,9 +115,9 @@ export default function StudentLoginScreen({ navigation }: Props) {
               <Text style={styles.label}>Tu nombre</Text>
               <Input
                 placeholder="Ej: Juan Pérez"
-                value={values.username}
-                onChangeText={handleChange('username')}
-                error={errors.username}
+                value={values.fullName}
+                onChangeText={handleChange('fullName')}
+                error={errors.fullName}
                 autoCapitalize="words"
                 editable={!loading}
                 leftIcon={<Ionicons name="person-outline" size={20} color={theme.colors.text.tertiary} />}

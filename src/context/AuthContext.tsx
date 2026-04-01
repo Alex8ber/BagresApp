@@ -33,6 +33,7 @@ import type { User } from '@supabase/supabase-js';
 import type { Teacher, Student } from '@/types/models';
 import type { TeacherInsert, StudentInsert } from '@/types/database';
 import * as authService from '@/services/supabase/auth';
+import * as studentService from '@/services/supabase/students';
 import { transformTeacher, transformStudent } from '@/utils/transformers';
 
 /**
@@ -60,8 +61,8 @@ export interface AuthContextState {
  * Authentication context actions
  */
 export interface AuthContextActions {
-  /** Sign in with email and password */
-  signIn: (email: string, password: string, role: UserRole) => Promise<void>;
+  /** Sign in with email and password (teachers) or join class with code (students) */
+  signIn: (emailOrName: string, passwordOrCode: string, role: UserRole) => Promise<void>;
   /** Sign up a new user */
   signUp: (email: string, password: string, role: UserRole, profileData: any) => Promise<void>;
   /** Sign out the current user */
@@ -166,9 +167,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /**
-   * Sign in with email and password
+   * Sign in with email and password (teachers) or join class with code (students)
    */
-  const signIn = useCallback(async (email: string, password: string, userRole: UserRole) => {
+  const signIn = useCallback(async (emailOrName: string, passwordOrCode: string, userRole: UserRole) => {
     try {
       setLoading(true);
       setError(null);
@@ -184,7 +185,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         const mockUser: User = {
           id: 'mock-user-id-' + userRole,
-          email: email,
+          email: emailOrName,
           app_metadata: {},
           user_metadata: {},
           aud: 'authenticated',
@@ -197,7 +198,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (userRole === 'teacher') {
           const mockTeacher: Teacher = {
             id: mockUser.id,
-            email: email,
+            email: emailOrName,
             fullName: 'Mock Teacher',
             school: 'Development School',
             verified: true,
@@ -211,7 +212,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } else if (userRole === 'student') {
           const mockStudent: Student = {
             id: mockUser.id,
-            fullName: 'Mock Student',
+            fullName: emailOrName,
             classId: 'mock-class-id',
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -224,14 +225,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Real authentication
-      const authenticatedUser = await authService.signIn(email, password);
-      setUser(authenticatedUser);
+      // Real authentication - different flow for students vs teachers
+      if (userRole === 'student') {
+        // Students join a class with name + class code (no auth user needed)
+        const { student } = await studentService.joinClassWithCode(
+          emailOrName, // This is the student's full name
+          passwordOrCode // This is the class code
+        );
 
-      // Load profile based on role
-      await loadProfile(authenticatedUser.id, userRole);
+        // For students, we don't have a real auth user, so we create a mock one
+        // This allows the app to work without requiring email/password for students
+        const mockStudentUser: User = {
+          id: student.id,
+          email: `student-${student.id}@local.app`,
+          app_metadata: {},
+          user_metadata: { full_name: student.full_name },
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+        } as User;
+
+        setUser(mockStudentUser);
+        setProfile(transformStudent(student));
+        setRole('student');
+      } else {
+        // Teachers use email/password authentication
+        const authenticatedUser = await authService.signIn(emailOrName, passwordOrCode);
+        setUser(authenticatedUser);
+
+        // Load profile based on role
+        await loadProfile(authenticatedUser.id, userRole);
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in';
+      const errorMessage = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(errorMessage);
       throw err;
     } finally {

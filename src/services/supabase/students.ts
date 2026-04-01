@@ -102,3 +102,98 @@ export async function updateStudent(
     throw new NetworkError('Failed to update student');
   }
 }
+
+/**
+ * Join a class with a class code
+ * Creates a student record and returns the class information
+ * 
+ * @param fullName - Student's full name
+ * @param classCode - The 6-digit class code
+ * @returns The created student and class information
+ * @throws {AuthenticationError} If class code is invalid
+ * @throws {DatabaseError} If database operation fails
+ * @throws {NetworkError} If network request fails
+ */
+export async function joinClassWithCode(
+  fullName: string,
+  classCode: string
+): Promise<{ student: Student; classId: string; className: string }> {
+  try {
+    // First, find the class by code
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name')
+      .eq('class_code', classCode.toUpperCase())
+      .single();
+
+    if (classError || !classData) {
+      const error = new Error('Código de clase inválido. Verifica con tu profesor.');
+      error.name = 'AuthenticationError';
+      throw error;
+    }
+
+    // Create the student record
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .insert({
+        class_id: classData.id,
+        full_name: fullName.trim(),
+      } as any)
+      .select()
+      .single();
+
+    if (studentError) {
+      throw new DatabaseError(studentError.message);
+    }
+
+    if (!student) {
+      throw new DatabaseError('No se pudo crear el estudiante');
+    }
+
+    return {
+      student,
+      classId: classData.id,
+      className: classData.name,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AuthenticationError') {
+      throw error;
+    }
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Error al unirse a la clase');
+  }
+}
+
+/**
+ * Get a student by ID
+ * 
+ * @param studentId - The student ID
+ * @returns The student or null if not found
+ * @throws {DatabaseError} If database operation fails
+ * @throws {NetworkError} If network request fails
+ */
+export async function getStudentById(studentId: string): Promise<Student | null> {
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', studentId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw new DatabaseError(error.message);
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to fetch student');
+  }
+}

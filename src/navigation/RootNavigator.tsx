@@ -26,6 +26,9 @@ import { TeacherDashboardTabs } from '@/screens/teacher';
 import TeacherStudentsListScreen from '@/screens/teacher/TeacherStudentsListScreen';
 import TeacherCreateTestScreen from '@/screens/teacher/TeacherCreateTestScreen';
 import TeacherCreateClassScreen from '@/screens/teacher/TeacherCreateClassScreen';
+import TeacherCreateMaterialScreen from '@/screens/teacher/TeacherCreateMaterialScreen';
+import TeacherCreateQuizScreen from '@/screens/teacher/TeacherCreateQuizScreen';
+import TeacherMaterialDetailScreen from '@/screens/teacher/TeacherMaterialDetailScreen';
 import TeacherReportsScreen from '@/screens/teacher/TeacherReportsScreen';
 import TeacherScheduleScreen from '@/screens/teacher/TeacherScheduleScreen';
 
@@ -162,6 +165,39 @@ export function RootNavigator() {
             component={TeacherCreateClassScreen}
             options={{
               title: 'Nueva Clase',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherCreateMaterial"
+            component={TeacherCreateMaterialScreen}
+            options={{
+              title: 'Nuevo Material',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherCreateQuiz"
+            component={TeacherCreateQuizScreen}
+            options={{
+              title: 'Nuevo Cuestionario',
+              headerStyle: {
+                backgroundColor: colors.teacher.main,
+              },
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherMaterialDetail"
+            component={TeacherMaterialDetailScreen}
+            options={{
+              title: 'Detalle del Material',
               headerStyle: {
                 backgroundColor: colors.teacher.main,
               },
