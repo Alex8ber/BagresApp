@@ -7,7 +7,7 @@
  * Requirements: 2.3, 2.6, 5.3, 6.7, 8.1, 8.2, 11.8
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks';
 import { Button } from '@/components/shared';
 import { theme } from '@/styles';
 import type { Student } from '@/types/database';
+import * as studentService from '@/services/supabase/students';
 
 type Props = BottomTabScreenProps<StudentTabParamList, 'Profile'>;
 
@@ -34,10 +35,44 @@ type Props = BottomTabScreenProps<StudentTabParamList, 'Profile'>;
  * Displays student profile information with edit and sign out functionality.
  */
 export default function StudentProfileScreen({ navigation }: Props) {
-  const { user, profile, signOut, loading } = useAuth();
+  const { profile, signOut, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const [classData, setClassData] = useState<any>(null);
+  const [stats, setStats] = useState({
+    completedQuizzes: 0,
+    totalPoints: 0,
+    achievements: 0,
+  });
 
   const studentProfile = profile as Student | null;
+
+  useEffect(() => {
+    loadStudentData();
+  }, [profile]);
+
+  const loadStudentData = async () => {
+    if (!profile?.id) return;
+
+    try {
+      // Get student's class
+      const studentClass = await studentService.getStudentClass(profile.id);
+      setClassData(studentClass);
+
+      // Get student's submissions to calculate stats
+      const submissions = await studentService.getStudentSubmissions(profile.id);
+      
+      const completedQuizzes = submissions.length;
+      const totalPoints = submissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+      
+      setStats({
+        completedQuizzes,
+        totalPoints,
+        achievements: Math.floor(completedQuizzes / 5), // 1 achievement per 5 quizzes
+      });
+    } catch (error) {
+      console.error('Error loading student data:', error);
+    }
+  };
 
   const handleGoBack = () => {
     navigation.navigate('Main');
@@ -85,7 +120,7 @@ export default function StudentProfileScreen({ navigation }: Props) {
     );
   }
 
-  if (!user || !studentProfile) {
+  if (!studentProfile) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContainer}>
@@ -135,29 +170,33 @@ export default function StudentProfileScreen({ navigation }: Props) {
             </View>
             <View style={styles.fieldContent}>
               <Text style={styles.fieldLabel}>Nombre Completo</Text>
-              <Text style={styles.fieldValue}>{studentProfile.full_name}</Text>
+              <Text style={styles.fieldValue}>{studentProfile.fullName}</Text>
             </View>
           </View>
 
-          <View style={styles.fieldContainer}>
-            <View style={styles.fieldIcon}>
-              <Ionicons name="mail" size={20} color={theme.colors.student.main} />
+          {classData && (
+            <View style={styles.fieldContainer}>
+              <View style={styles.fieldIcon}>
+                <Ionicons name="school" size={20} color={theme.colors.student.main} />
+              </View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Clase</Text>
+                <Text style={styles.fieldValue}>{classData.classes?.name || 'Mi Clase'}</Text>
+              </View>
             </View>
-            <View style={styles.fieldContent}>
-              <Text style={styles.fieldLabel}>Correo Electrónico</Text>
-              <Text style={styles.fieldValue}>{studentProfile.email}</Text>
-            </View>
-          </View>
+          )}
 
-          <View style={styles.fieldContainer}>
-            <View style={styles.fieldIcon}>
-              <Ionicons name="school" size={20} color={theme.colors.student.main} />
+          {classData?.classes?.teachers && (
+            <View style={styles.fieldContainer}>
+              <View style={styles.fieldIcon}>
+                <Ionicons name="person-outline" size={20} color={theme.colors.student.main} />
+              </View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Profesor</Text>
+                <Text style={styles.fieldValue}>{classData.classes.teachers.full_name}</Text>
+              </View>
             </View>
-            <View style={styles.fieldContent}>
-              <Text style={styles.fieldLabel}>Grado</Text>
-              <Text style={styles.fieldValue}>{studentProfile.grade}</Text>
-            </View>
-          </View>
+          )}
         </View>
 
         {/* Stats Card */}
@@ -168,21 +207,21 @@ export default function StudentProfileScreen({ navigation }: Props) {
               <View style={[styles.statIcon, { backgroundColor: '#E8F5E9' }]}>
                 <Ionicons name="trophy" size={24} color={theme.colors.student.main} />
               </View>
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{stats.achievements}</Text>
               <Text style={styles.statLabel}>Logros</Text>
             </View>
             <View style={styles.statItem}>
               <View style={[styles.statIcon, { backgroundColor: '#FFF3E0' }]}>
                 <Ionicons name="star" size={24} color="#FF9800" />
               </View>
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{stats.totalPoints}</Text>
               <Text style={styles.statLabel}>Puntos</Text>
             </View>
             <View style={styles.statItem}>
               <View style={[styles.statIcon, { backgroundColor: '#E3F2FD' }]}>
                 <Ionicons name="checkmark-circle" size={24} color="#2196F3" />
               </View>
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{stats.completedQuizzes}</Text>
               <Text style={styles.statLabel}>Completadas</Text>
             </View>
           </View>

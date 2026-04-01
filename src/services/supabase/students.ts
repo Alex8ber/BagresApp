@@ -1,20 +1,64 @@
+/**
+ * Student Services
+ * 
+ * Services for student-related operations including class enrollment,
+ * materials, quizzes, and assignments.
+ */
+
 import { supabase } from './client';
-import type { Student, StudentUpdate } from '@/types/database';
 import { DatabaseError, NetworkError } from '@/types/errors';
 
 /**
- * Get all students
- * 
- * @returns Array of all students
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
+ * Get the class that a student is enrolled in
+ * Students can only be in one class
  */
-export async function getStudents(): Promise<Student[]> {
+export async function getStudentClass(studentId: string) {
   try {
     const { data, error } = await supabase
-      .from('students')
+      .from('class_students')
+      .select(`
+        class_id,
+        enrolled_at,
+        classes (
+          id,
+          name,
+          class_code,
+          teacher_id,
+          teachers (
+            full_name
+          )
+        )
+      `)
+      .eq('student_id', studentId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // Student not enrolled in any class
+      }
+      throw new DatabaseError(error.message);
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to fetch student class');
+  }
+}
+
+/**
+ * Get materials for a student's class
+ */
+export async function getStudentMaterials(classId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('materials')
       .select('*')
-      .order('full_name', { ascending: true });
+      .eq('class_id', classId)
+      .eq('published', true)
+      .order('created_at', { ascending: false });
 
     if (error) {
       throw new DatabaseError(error.message);
@@ -25,175 +69,150 @@ export async function getStudents(): Promise<Student[]> {
     if (error instanceof DatabaseError) {
       throw error;
     }
-    throw new NetworkError('Failed to fetch students');
+    throw new NetworkError('Failed to fetch materials');
   }
 }
 
 /**
- * Get all students enrolled in a specific class
- * 
- * Note: This assumes a class_students junction table exists.
- * Adjust the query based on your actual database schema.
- * 
- * @param classId - The class ID
- * @returns Array of students in the class
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
+ * Get quizzes for a student's class
+ * Only returns published quizzes within their availability window
  */
-export async function getStudentsByClass(classId: string): Promise<Student[]> {
+export async function getStudentQuizzes(classId: string) {
   try {
-    // This query assumes a class_students junction table
-    // Adjust based on your actual schema
+    const now = new Date().toISOString();
+    
     const { data, error } = await supabase
-      .from('class_students')
-      .select('student_id, students(*)')
-      .eq('class_id', classId);
+      .from('quizzes')
+      .select(`
+        *,
+        quiz_questions (
+          id
+        )
+      `)
+      .eq('class_id', classId)
+      .eq('published', true)
+      .lte('available_from', now)
+      .gte('available_until', now)
+      .order('available_from', { ascending: false });
 
     if (error) {
       throw new DatabaseError(error.message);
     }
 
-    // Extract student objects from the join result
-    const students = data?.map((item: any) => item.students).filter(Boolean) || [];
-    return students;
+    // Add question count to each quiz
+    return (data || []).map(quiz => ({
+      ...quiz,
+      question_count: quiz.quiz_questions?.length || 0,
+    }));
   } catch (error) {
     if (error instanceof DatabaseError) {
       throw error;
     }
-    throw new NetworkError('Failed to fetch students by class');
+    throw new NetworkError('Failed to fetch quizzes');
   }
 }
 
 /**
- * Update a student's information
- * 
- * @param studentId - The student ID to update
- * @param updates - Partial student data to update
- * @returns The updated student
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
+ * Get upcoming quizzes for a student's class
  */
-export async function updateStudent(
-  studentId: string,
-  updates: StudentUpdate
-): Promise<Student> {
+export async function getUpcomingQuizzes(classId: string) {
   try {
+    const now = new Date().toISOString();
+    
     const { data, error } = await supabase
-      .from('students')
-      // @ts-expect-error - Supabase TypeScript limitations with update types
-      .update(updates as any)
-      .eq('id', studentId)
-      .select()
-      .single();
-
-    if (error) {
-      throw new DatabaseError(error.message);
-    }
-
-    if (!data) {
-      throw new DatabaseError('No student data returned');
-    }
-
-    return data;
-  } catch (error) {
-    if (error instanceof DatabaseError) {
-      throw error;
-    }
-    throw new NetworkError('Failed to update student');
-  }
-}
-
-/**
- * Join a class with a class code
- * Creates a student record and returns the class information
- * 
- * @param fullName - Student's full name
- * @param classCode - The 6-digit class code
- * @returns The created student and class information
- * @throws {AuthenticationError} If class code is invalid
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
- */
-export async function joinClassWithCode(
-  fullName: string,
-  classCode: string
-): Promise<{ student: Student; classId: string; className: string }> {
-  try {
-    // First, find the class by code
-    const { data: classData, error: classError } = await supabase
-      .from('classes')
-      .select('id, name')
-      .eq('class_code', classCode.toUpperCase())
-      .single();
-
-    if (classError || !classData) {
-      const error = new Error('Código de clase inválido. Verifica con tu profesor.');
-      error.name = 'AuthenticationError';
-      throw error;
-    }
-
-    // Create the student record
-    const { data: student, error: studentError } = await supabase
-      .from('students')
-      .insert({
-        class_id: classData.id,
-        full_name: fullName.trim(),
-      } as any)
-      .select()
-      .single();
-
-    if (studentError) {
-      throw new DatabaseError(studentError.message);
-    }
-
-    if (!student) {
-      throw new DatabaseError('No se pudo crear el estudiante');
-    }
-
-    return {
-      student,
-      classId: classData.id,
-      className: classData.name,
-    };
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AuthenticationError') {
-      throw error;
-    }
-    if (error instanceof DatabaseError) {
-      throw error;
-    }
-    throw new NetworkError('Error al unirse a la clase');
-  }
-}
-
-/**
- * Get a student by ID
- * 
- * @param studentId - The student ID
- * @returns The student or null if not found
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
- */
-export async function getStudentById(studentId: string): Promise<Student | null> {
-  try {
-    const { data, error } = await supabase
-      .from('students')
+      .from('quizzes')
       .select('*')
-      .eq('id', studentId)
-      .single();
+      .eq('class_id', classId)
+      .eq('published', true)
+      .gte('available_from', now)
+      .order('available_from', { ascending: true })
+      .limit(5);
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return null;
-      }
       throw new DatabaseError(error.message);
     }
 
-    return data;
+    return data || [];
   } catch (error) {
     if (error instanceof DatabaseError) {
       throw error;
     }
-    throw new NetworkError('Failed to fetch student');
+    throw new NetworkError('Failed to fetch upcoming quizzes');
+  }
+}
+
+/**
+ * Get student's quiz submissions
+ */
+export async function getStudentSubmissions(studentId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('quiz_submissions')
+      .select(`
+        *,
+        quizzes (
+          title,
+          class_id
+        )
+      `)
+      .eq('student_id', studentId)
+      .order('submitted_at', { ascending: false });
+
+    if (error) {
+      throw new DatabaseError(error.message);
+    }
+
+    return data || [];
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to fetch submissions');
+  }
+}
+
+/**
+ * Get recent activities for a student
+ * Combines submissions and available quizzes
+ */
+export async function getStudentRecentActivities(studentId: string, classId: string) {
+  try {
+    // Get recent submissions
+    const submissions = await getStudentSubmissions(studentId);
+    
+    // Get available quizzes
+    const quizzes = await getStudentQuizzes(classId);
+    
+    // Combine and format activities
+    const activities = [
+      ...submissions.map(sub => ({
+        id: sub.id,
+        title: sub.quizzes?.title || 'Quiz',
+        status: 'completed' as const,
+        score: sub.score,
+        date: sub.submitted_at,
+      })),
+      ...quizzes
+        .filter(quiz => !submissions.find(sub => sub.quiz_id === quiz.id))
+        .map(quiz => ({
+          id: quiz.id,
+          title: quiz.title,
+          status: 'pending' as const,
+          score: null,
+          date: quiz.available_from,
+        })),
+    ];
+    
+    // Sort by date (most recent first)
+    activities.sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    
+    return activities.slice(0, 10); // Return top 10
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to fetch recent activities');
   }
 }

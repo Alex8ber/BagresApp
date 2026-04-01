@@ -80,7 +80,22 @@ export default function StudentLoginScreen({ navigation }: Props) {
         await signIn(data.fullName, data.classCode, 'student');
         // Navigation is handled by auth state change
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al unirse a la clase');
+        // Extract user-friendly error message
+        let errorMessage = 'Error al unirse a la clase';
+        
+        if (err instanceof Error) {
+          errorMessage = err.message;
+        }
+        
+        // Show specific error for invalid class code
+        if (errorMessage.includes('inválido') || errorMessage.includes('invalid')) {
+          errorMessage = 'Código de clase inválido. Verifica con tu profesor.';
+        } else if (errorMessage.includes('nombre') || errorMessage.includes('name')) {
+          errorMessage = 'Por favor verifica tu nombre e intenta de nuevo.';
+        }
+        
+        setError(errorMessage);
+        // Don't re-throw the error to prevent navigation away from this screen
       }
     },
   });

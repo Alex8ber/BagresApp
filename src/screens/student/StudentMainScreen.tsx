@@ -7,7 +7,7 @@
  * Requirements: 2.3, 2.6, 5.3, 6.7, 8.1, 8.2, 11.8
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,12 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/styles';
+import * as studentService from '@/services/supabase/students';
 
 /**
  * StudentMainScreen Component
@@ -27,21 +29,84 @@ import { theme } from '@/styles';
  */
 export default function StudentMainScreen() {
   const { profile } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [classData, setClassData] = useState<any>(null);
+  const [upcomingQuizzes, setUpcomingQuizzes] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [recentMaterials, setRecentMaterials] = useState<any[]>([]);
+  const [activeQuizzes, setActiveQuizzes] = useState<any[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  // Mock data - replace with real data later
-  const myClasses = [
-    { id: '1', name: 'Matemáticas', teacher: 'Prof. García', color: '#FFE082', emoji: '🔢' },
-    { id: '2', name: 'Ciencias', teacher: 'Prof. López', color: '#A5D6A7', emoji: '🔬' },
-  ];
+  useEffect(() => {
+    loadStudentData();
+    loadNotificationCount();
+  }, [profile]);
 
-  const upcomingTests = [
-    { id: '1', subject: 'Matemáticas', date: 'Mañana', time: '10:00 AM' },
-  ];
+  const loadNotificationCount = async () => {
+    if (!profile?.id) return;
+    
+    try {
+      const { getUnreadCount } = await import('@/services/supabase/notifications');
+      const count = await getUnreadCount(profile.id, 'student');
+      setUnreadNotifications(count);
+    } catch (error) {
+      console.error('Error loading notification count:', error);
+    }
+  };
 
-  const recentActivities = [
-    { id: '1', title: 'Tarea de Fracciones', status: 'completed', score: 95 },
-    { id: '2', title: 'Quiz de Ciencias', status: 'pending', score: null },
-  ];
+  const loadStudentData = async () => {
+    if (!profile?.id) return;
+
+    try {
+      setLoading(true);
+
+      // Get student's class
+      const studentClass = await studentService.getStudentClass(profile.id);
+      setClassData(studentClass);
+
+      if (studentClass?.class_id) {
+        // Get all data in parallel
+        const [quizzes, activities, materials] = await Promise.all([
+          studentService.getUpcomingQuizzes(studentClass.class_id),
+          studentService.getStudentRecentActivities(profile.id, studentClass.class_id),
+          studentService.getStudentMaterials(studentClass.class_id),
+        ]);
+
+        setUpcomingQuizzes(quizzes);
+        setRecentActivities(activities);
+        
+        // Get recent materials (last 3)
+        setRecentMaterials(materials.slice(0, 3));
+        
+        // Get active quizzes (available now)
+        const now = new Date().toISOString();
+        const active = quizzes.filter(q => 
+          q.available_from <= now && q.available_until >= now
+        );
+        setActiveQuizzes(active.slice(0, 3));
+      }
+    } catch (error) {
+      console.error('Error loading student data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNotificationPress = () => {
+    // TODO: Navigate to notifications screen
+    console.log('Open notifications');
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.student.main} />
+          <Text style={styles.loadingText}>Cargando...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -61,11 +126,18 @@ export default function StudentMainScreen() {
               <Text style={styles.userName}>{profile?.fullName || 'Estudiante'}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={handleNotificationPress}
+          >
             <Ionicons name="notifications-outline" size={24} color="#fff" />
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>2</Text>
-            </View>
+            {unreadNotifications > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -74,109 +146,212 @@ export default function StudentMainScreen() {
           <View style={styles.welcomeCardContent}>
             <Text style={styles.welcomeTitle}>¡Sigue aprendiendo!</Text>
             <Text style={styles.welcomeSubtitle}>
-              Tienes 1 examen próximo y 2 tareas pendientes
+              {activeQuizzes.length > 0 
+                ? `${activeQuizzes.length} ${activeQuizzes.length === 1 ? 'quiz activo' : 'quizzes activos'} disponibles`
+                : upcomingQuizzes.length > 0
+                ? `${upcomingQuizzes.length} ${upcomingQuizzes.length === 1 ? 'examen próximo' : 'exámenes próximos'}`
+                : 'No tienes exámenes próximos'}
             </Text>
           </View>
           <Text style={styles.welcomeEmoji}>📚</Text>
         </TouchableOpacity>
 
-        {/* My Classes Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Mis Clases</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllButton}>Ver todo</Text>
-            </TouchableOpacity>
+        {/* Active Quizzes Section */}
+        {activeQuizzes.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Quizzes Activos</Text>
+              <Text style={styles.sectionBadge}>{activeQuizzes.length}</Text>
+            </View>
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {activeQuizzes.map((quiz) => (
+                <TouchableOpacity 
+                  key={quiz.id} 
+                  style={styles.activeQuizCard}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.activeQuizHeader}>
+                    <View style={styles.activeQuizBadge}>
+                      <Ionicons name="flash" size={16} color="#fff" />
+                      <Text style={styles.activeQuizBadgeText}>ACTIVO</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.activeQuizTitle}>{quiz.title}</Text>
+                  <View style={styles.activeQuizFooter}>
+                    <View style={styles.activeQuizInfo}>
+                      <Ionicons name="help-circle-outline" size={14} color="#666" />
+                      <Text style={styles.activeQuizInfoText}>
+                        {quiz.question_count || 0} preguntas
+                      </Text>
+                    </View>
+                    {quiz.duration_minutes && (
+                      <View style={styles.activeQuizInfo}>
+                        <Ionicons name="time-outline" size={14} color="#666" />
+                        <Text style={styles.activeQuizInfoText}>{quiz.duration_minutes} min</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.activeQuizButton}>
+                    <Text style={styles.activeQuizButtonText}>Comenzar Ahora</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#fff" />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.classesScroll}
-          >
-            {myClasses.map((classItem) => (
+        )}
+
+        {/* Recent Materials Section */}
+        {recentMaterials.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Materiales Recientes</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllButton}>Ver todos</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {recentMaterials.map((material) => (
               <TouchableOpacity 
-                key={classItem.id} 
-                style={[styles.classCard, { backgroundColor: classItem.color }]}
+                key={material.id} 
+                style={styles.materialCard}
                 activeOpacity={0.8}
               >
-                <Text style={styles.classEmoji}>{classItem.emoji}</Text>
-                <Text style={styles.className}>{classItem.name}</Text>
-                <View style={styles.classTeacher}>
-                  <Ionicons name="person" size={14} color="#666" />
-                  <Text style={styles.classTeacherText}>{classItem.teacher}</Text>
+                <View style={styles.materialIconContainer}>
+                  <Ionicons 
+                    name={material.content_type?.includes('pdf') ? 'document-text' : 'document'} 
+                    size={24} 
+                    color={theme.colors.student.main} 
+                  />
                 </View>
+                <View style={styles.materialContent}>
+                  <Text style={styles.materialTitle}>{material.title}</Text>
+                  <Text style={styles.materialDate}>
+                    {new Date(material.created_at).toLocaleDateString('es-ES', {
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
               </TouchableOpacity>
             ))}
+          </View>
+        )}
+
+        {/* My Class Section */}
+        {classData ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Mi Clase</Text>
+            </View>
             
-            {/* Add Class Card */}
-            <TouchableOpacity style={styles.addClassCard} activeOpacity={0.8}>
-              <Ionicons name="add-circle" size={40} color={theme.colors.student.main} />
-              <Text style={styles.addClassText}>Unirme a{'\n'}una clase</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
+            <View style={styles.classesScroll}>
+              <TouchableOpacity 
+                style={[styles.classCard, { backgroundColor: '#A5D6A7' }]}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.classEmoji}>📚</Text>
+                <Text style={styles.className}>{classData.classes?.name || 'Mi Clase'}</Text>
+                <View style={styles.classTeacher}>
+                  <Ionicons name="person" size={14} color="#666" />
+                  <Text style={styles.classTeacherText}>
+                    {classData.classes?.teachers?.full_name || 'Profesor'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Mi Clase</Text>
+            </View>
+            
+            <View style={styles.classesScroll}>
+              <View style={styles.noClassCard}>
+                <Ionicons name="school-outline" size={48} color="#999" />
+                <Text style={styles.noClassText}>No estás inscrito en ninguna clase</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Upcoming Tests Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Próximos Exámenes</Text>
-          </View>
-          
-          {upcomingTests.map((test) => (
-            <TouchableOpacity 
-              key={test.id} 
-              style={styles.testCard}
-              activeOpacity={0.8}
-            >
-              <View style={styles.testIcon}>
-                <Ionicons name="document-text" size={24} color={theme.colors.student.main} />
-              </View>
-              <View style={styles.testContent}>
-                <Text style={styles.testSubject}>{test.subject}</Text>
-                <View style={styles.testMeta}>
-                  <Ionicons name="calendar-outline" size={14} color="#666" />
-                  <Text style={styles.testMetaText}>{test.date} • {test.time}</Text>
+        {upcomingQuizzes.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Próximos Exámenes</Text>
+            </View>
+            
+            {upcomingQuizzes.slice(0, 3).map((quiz) => (
+              <TouchableOpacity 
+                key={quiz.id} 
+                style={styles.testCard}
+                activeOpacity={0.8}
+              >
+                <View style={styles.testIcon}>
+                  <Ionicons name="document-text" size={24} color={theme.colors.student.main} />
                 </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
-            </TouchableOpacity>
-          ))}
-        </View>
+                <View style={styles.testContent}>
+                  <Text style={styles.testSubject}>{quiz.title}</Text>
+                  <View style={styles.testMeta}>
+                    <Ionicons name="calendar-outline" size={14} color="#666" />
+                    <Text style={styles.testMetaText}>
+                      {new Date(quiz.available_from).toLocaleDateString('es-ES', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
+                      {quiz.duration_minutes && ` • ${quiz.duration_minutes} min`}
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Recent Activities Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Actividades Recientes</Text>
-          </View>
-          
-          {recentActivities.map((activity) => (
-            <View key={activity.id} style={styles.activityCard}>
-              <View style={[
-                styles.activityStatus,
-                { backgroundColor: activity.status === 'completed' ? '#C8E6C9' : '#FFE082' }
-              ]}>
-                <Ionicons 
-                  name={activity.status === 'completed' ? 'checkmark-circle' : 'time'} 
-                  size={20} 
-                  color={activity.status === 'completed' ? '#2E7D32' : '#F57C00'} 
-                />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>{activity.title}</Text>
-                <Text style={styles.activityStatusText}>
-                  {activity.status === 'completed' ? 'Completado' : 'Pendiente'}
-                </Text>
-              </View>
-              {activity.score !== null && (
-                <View style={styles.scoreContainer}>
-                  <Text style={styles.scoreText}>{activity.score}</Text>
-                  <Text style={styles.scoreLabel}>pts</Text>
-                </View>
-              )}
+        {recentActivities.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Actividades Recientes</Text>
             </View>
-          ))}
-        </View>
+            
+            {recentActivities.slice(0, 5).map((activity) => (
+              <View key={activity.id} style={styles.activityCard}>
+                <View style={[
+                  styles.activityStatus,
+                  { backgroundColor: activity.status === 'completed' ? '#C8E6C9' : '#FFE082' }
+                ]}>
+                  <Ionicons 
+                    name={activity.status === 'completed' ? 'checkmark-circle' : 'time'} 
+                    size={20} 
+                    color={activity.status === 'completed' ? '#2E7D32' : '#F57C00'} 
+                  />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>{activity.title}</Text>
+                  <Text style={styles.activityStatusText}>
+                    {activity.status === 'completed' ? 'Completado' : 'Pendiente'}
+                  </Text>
+                </View>
+                {activity.score !== null && (
+                  <View style={styles.scoreContainer}>
+                    <Text style={styles.scoreText}>{activity.score}</Text>
+                    <Text style={styles.scoreLabel}>pts</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -194,6 +369,19 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 100,
+  },
+  
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+    fontWeight: '600',
   },
   
   // Header
@@ -312,10 +500,132 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text.primary,
   },
+  sectionBadge: {
+    backgroundColor: theme.colors.student.main,
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
   seeAllButton: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.student.main,
+  },
+
+  // Horizontal Scroll
+  horizontalScroll: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+
+  // Active Quiz Card
+  activeQuizCard: {
+    width: 260,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.student.main,
+  },
+  activeQuizHeader: {
+    marginBottom: 12,
+  },
+  activeQuizBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.student.main,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  activeQuizBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  activeQuizTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    marginBottom: 12,
+  },
+  activeQuizFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  activeQuizInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  activeQuizInfoText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeQuizButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.student.main,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  activeQuizButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Material Card (compact version)
+  materialCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 12,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  materialIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  materialContent: {
+    flex: 1,
+  },
+  materialTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    marginBottom: 4,
+  },
+  materialDate: {
+    fontSize: 12,
+    color: '#666',
   },
 
   // Classes
@@ -324,7 +634,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   classCard: {
-    width: 140,
+    width: 200,
     height: 140,
     borderRadius: 16,
     padding: 16,
@@ -355,25 +665,23 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-  addClassCard: {
-    width: 140,
-    height: 140,
-    borderRadius: 16,
-    padding: 16,
-    justifyContent: 'center',
+  noClassCard: {
+    width: '100%',
+    padding: 32,
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
     borderWidth: 2,
-    borderColor: theme.colors.student.main,
+    borderColor: '#E0E0E0',
     borderStyle: 'dashed',
   },
-  addClassText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.colors.student.main,
+  noClassText: {
+    fontSize: 14,
+    color: '#999',
+    fontWeight: '600',
+    marginTop: 12,
     textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 16,
   },
 
   // Test Card

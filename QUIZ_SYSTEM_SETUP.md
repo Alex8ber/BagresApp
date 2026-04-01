@@ -4,6 +4,7 @@
 ✅ Sistema completamente implementado y funcionando
 ✅ 418 tests pasando
 ✅ Base de datos configurada correctamente
+✅ Sistema de acceso por código de clase para estudiantes implementado
 
 ## Componentes Implementados
 
@@ -115,6 +116,60 @@ Resultados actuales: 418 tests pasando en 17 suites
 3. ✅ SafeAreaView deprecated - Migrado a react-native-safe-area-context
 4. ✅ Imports innecesarios - Limpiados
 5. ✅ Console.log en producción - Eliminados
+6. ✅ Registro de estudiantes - Cambiado a sistema de código de clase
+
+## Sistema de Acceso para Estudiantes
+
+### Flujo de Acceso (Login/Register Automático)
+1. Estudiante ingresa su nombre completo
+2. Estudiante ingresa el código de clase de 6 caracteres (proporcionado por el profesor)
+3. Sistema valida el código contra la base de datos
+4. **Sistema verifica si el estudiante ya existe en esa clase:**
+   - **Si existe:** Carga el perfil existente (LOGIN) - "¡Bienvenido de nuevo!"
+   - **Si no existe:** Crea nuevo perfil (REGISTER) - "¡Te has unido a la clase!"
+5. Estudiante accede al dashboard con su perfil
+
+### Características
+- ✅ **NO requiere email ni contraseña** para estudiantes
+- ✅ **Nombres únicos por clase** (case-insensitive: Ramses = ramses = RAMSES)
+- ✅ **Login automático** si el estudiante ya existe
+- ✅ **Registro automático** si es la primera vez
+- ✅ IDs únicos generados por la aplicación (ej: `student_1234567890_abc123`)
+- ✅ Sin cuentas de Supabase Auth para estudiantes
+- ✅ Navegación basada en rol, no en usuario autenticado
+- ✅ Similar a Google Classroom: un nombre = un estudiante por clase
+
+### Ejemplo de Uso
+```
+Clase: Matemáticas 5to (Código: ABC123)
+
+Primera vez:
+- Estudiante: "Ramses" + "ABC123" → Crea perfil nuevo ✅
+
+Segunda vez (mismo estudiante):
+- Estudiante: "Ramses" + "ABC123" → Carga perfil existente ✅
+- Estudiante: "ramses" + "ABC123" → Carga perfil existente ✅ (case-insensitive)
+- Estudiante: "RAMSES" + "ABC123" → Carga perfil existente ✅ (case-insensitive)
+
+Otro estudiante:
+- Estudiante: "María" + "ABC123" → Crea perfil nuevo ✅
+```
+
+### Migraciones Requeridas
+
+**IMPORTANTE:** Debes ejecutar estas migraciones en Supabase para que el login de estudiantes funcione:
+
+1. **Permitir lectura anónima de clases** (para verificar códigos)
+2. **Permitir IDs personalizados** (estudiantes no usan UUIDs de auth)
+3. **Políticas RLS** (permitir inserción anónima de estudiantes)
+
+Ver instrucciones completas en: `migrations/STUDENT_LOGIN_SETUP.md`
+
+### Funciones Implementadas
+- `joinClassWithCode()` - Valida código y crea perfil de estudiante (SIN auth)
+- Actualizado `AuthContext` para manejar estudiantes sin objeto `user`
+- Actualizado `RootNavigator` para usar `role` en lugar de `user`
+- Actualizado `StudentLoginScreen` con UI de código de clase
 
 ## Próximos Pasos (Opcional)
 

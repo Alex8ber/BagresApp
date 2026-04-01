@@ -21,6 +21,7 @@ import {
   Image,
   Modal
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,9 +33,18 @@ import { theme } from '@/styles';
 import type { Class } from '@/types/database';
 import type { Teacher } from '@/types/models';
 import { deleteClass, deleteClassImage } from '@/services';
+import { getClassStats } from '@/services/supabase/classes';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type Props = TeacherTabScreenProps<'Classes'>;
+
+interface ClassWithStats extends Class {
+  stats?: {
+    students: number;
+    materials: number;
+    quizzes: number;
+  };
+}
 
 /**
  * TeacherClassesScreen Component
@@ -50,19 +60,69 @@ export default function TeacherClassesScreen(_props: Props) {
   const [deletingClass, setDeletingClass] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
+  const [classesWithStats, setClassesWithStats] = useState<ClassWithStats[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Load stats for all classes
+  useEffect(() => {
+    loadClassStats();
+  }, [classes]);
+
+  const loadClassStats = async () => {
+    if (classes.length === 0) {
+      setClassesWithStats([]);
+      return;
+    }
+
+    setLoadingStats(true);
+    try {
+      const classesWithStatsData = await Promise.all(
+        classes.map(async (classItem) => {
+          try {
+            const stats = await getClassStats(classItem.id);
+            return {
+              ...classItem,
+              stats,
+            };
+          } catch (error) {
+            console.error('Error loading stats for class:', classItem.id, error);
+            return {
+              ...classItem,
+              stats: { students: 0, materials: 0, quizzes: 0 },
+            };
+          }
+        })
+      );
+      setClassesWithStats(classesWithStatsData);
+    } catch (error) {
+      console.error('Error loading class stats:', error);
+      setClassesWithStats(classes.map(classItem => ({ ...classItem, stats: { students: 0, materials: 0, quizzes: 0 } })));
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   // Refetch classes when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      refetch();
+      const fetchData = async () => {
+        await refetch();
+        await loadClassStats();
+      };
+      fetchData();
     }, [refetch])
   );
 
-  const handleCopyCode = (code: string) => {
-    // In a real app, use Clipboard API
-    setCopiedCode(code);
-    Alert.alert('Código Copiado', `Código de clase: ${code}`);
-    setTimeout(() => setCopiedCode(null), 2000);
+  const handleCopyCode = async (code: string) => {
+    try {
+      await Clipboard.setStringAsync(code);
+      setCopiedCode(code);
+      // Show brief success feedback
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      Alert.alert('Error', 'No se pudo copiar el código');
+    }
   };
 
   const handleShareCode = async (className: string, code: string) => {
@@ -147,10 +207,11 @@ export default function TeacherClassesScreen(_props: Props) {
     );
   }
 
-  const renderClassItem = ({ item }: { item: Class }) => {
+  const renderClassItem = ({ item }: { item: ClassWithStats }) => {
     const classCode = item.class_code;
     const isCopied = copiedCode === classCode;
     const isDeleting = deletingClass === item.id;
+    const stats = item.stats || { students: 0, materials: 0, quizzes: 0 };
 
     return (
       <View style={styles.classCard}>
@@ -234,11 +295,15 @@ export default function TeacherClassesScreen(_props: Props) {
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Ionicons name="people" size={18} color={theme.colors.text.secondary} />
-            <Text style={styles.statText}>0 estudiantes</Text>
+            <Text style={styles.statText}>
+              {stats.students} {stats.students === 1 ? 'estudiante' : 'estudiantes'}
+            </Text>
           </View>
           <View style={styles.statItem}>
             <Ionicons name="document-text-outline" size={18} color={theme.colors.text.secondary} />
-            <Text style={styles.statText}>0 materiales</Text>
+            <Text style={styles.statText}>
+              {stats.materials} {stats.materials === 1 ? 'material' : 'materiales'}
+            </Text>
           </View>
         </View>
       </View>
@@ -290,11 +355,13 @@ export default function TeacherClassesScreen(_props: Props) {
           renderEmptyState()
         ) : (
           <FlatList
-            data={classes}
+            data={classesWithStats}
             renderItem={renderClassItem}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshing={loadingStats}
+            onRefresh={loadClassStats}
           />
         )}
       </View>

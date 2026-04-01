@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { View, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import { colors } from '@/styles/theme';
@@ -55,16 +56,27 @@ const defaultScreenOptions = {
 };
 
 export function RootNavigator() {
-  const { user, role, loading } = useAuth();
+  const { role, loading } = useAuth();
 
-  if (loading) {
-    return null; // Or a loading screen
-  }
-
+  // Always render the navigator, never return null
   return (
-    <Stack.Navigator screenOptions={defaultScreenOptions}>
-      {!user ? (
-        // Auth Stack - shown when not authenticated
+    <Stack.Navigator 
+      screenOptions={defaultScreenOptions}
+    >
+      {loading ? (
+        // Loading screen
+        <Stack.Screen
+          name="RoleSelection"
+          options={{ headerShown: false }}
+        >
+          {() => (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FA' }}>
+              <Text style={{ fontSize: 18, color: '#666' }}>Cargando...</Text>
+            </View>
+          )}
+        </Stack.Screen>
+      ) : !role ? (
+        // Auth Stack - shown when not authenticated (no role assigned)
         <>
           <Stack.Screen
             name="RoleSelection"

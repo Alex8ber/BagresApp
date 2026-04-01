@@ -33,7 +33,6 @@ import type { User } from '@supabase/supabase-js';
 import type { Teacher, Student } from '@/types/models';
 import type { TeacherInsert, StudentInsert } from '@/types/database';
 import * as authService from '@/services/supabase/auth';
-import * as studentService from '@/services/supabase/students';
 import { transformTeacher, transformStudent } from '@/utils/transformers';
 
 /**
@@ -51,7 +50,7 @@ export interface AuthContextState {
   profile: Teacher | Student | null;
   /** User role */
   role: UserRole;
-  /** Whether auth state is loading */
+  /** Whether auth state is loading (initial load or during operations) */
   loading: boolean;
   /** Authentication error message */
   error: string | null;
@@ -99,6 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [profile, setProfile] = useState<Teacher | Student | null>(null);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [initializing, setInitializing] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -157,9 +157,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } catch (err) {
         console.error('Failed to initialize auth:', err);
-        // Don't set error for initialization failures
+        // Clear any partial state on error
+        setUser(null);
+        setProfile(null);
+        setRole(null);
+        // Don't set error for initialization failures - just log it
       } finally {
         setLoading(false);
+        setInitializing(false);
       }
     };
 
@@ -171,80 +176,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const signIn = useCallback(async (emailOrName: string, passwordOrCode: string, userRole: UserRole) => {
     try {
-      setLoading(true);
+      setLoading(true); // Internal loading state for button
       setError(null);
-
-      // Check if we're in development mode without backend
-      const isDevelopmentMode = !process.env.EXPO_PUBLIC_SUPABASE_URL || 
-                                process.env.EXPO_PUBLIC_SUPABASE_URL === 'https://your-project.supabase.co' ||
-                                process.env.EXPO_PUBLIC_SUPABASE_URL === 'your-project-url.supabase.co';
-
-      if (isDevelopmentMode) {
-        // Mock login for development
-        console.log('🔧 Development mode: Using mock authentication');
-        
-        const mockUser: User = {
-          id: 'mock-user-id-' + userRole,
-          email: emailOrName,
-          app_metadata: {},
-          user_metadata: {},
-          aud: 'authenticated',
-          created_at: new Date().toISOString(),
-        } as User;
-
-        setUser(mockUser);
-
-        // Create mock profile
-        if (userRole === 'teacher') {
-          const mockTeacher: Teacher = {
-            id: mockUser.id,
-            email: emailOrName,
-            fullName: 'Mock Teacher',
-            school: 'Development School',
-            verified: true,
-            avatarUrl: null,
-            subjects: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          setProfile(mockTeacher);
-          setRole('teacher');
-        } else if (userRole === 'student') {
-          const mockStudent: Student = {
-            id: mockUser.id,
-            fullName: emailOrName,
-            classId: 'mock-class-id',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          setProfile(mockStudent);
-          setRole('student');
-        }
-
-        setLoading(false);
-        return;
-      }
 
       // Real authentication - different flow for students vs teachers
       if (userRole === 'student') {
-        // Students join a class with name + class code (no auth user needed)
-        const { student } = await studentService.joinClassWithCode(
+        // Students join a class with name + class code (NO auth account needed)
+        const { student } = await authService.joinClassWithCode(
           emailOrName, // This is the student's full name
           passwordOrCode // This is the class code
         );
 
-        // For students, we don't have a real auth user, so we create a mock one
-        // This allows the app to work without requiring email/password for students
-        const mockStudentUser: User = {
-          id: student.id,
-          email: `student-${student.id}@local.app`,
-          app_metadata: {},
-          user_metadata: { full_name: student.full_name },
-          aud: 'authenticated',
-          created_at: new Date().toISOString(),
-        } as User;
-
-        setUser(mockStudentUser);
+        // Students don't have a User object (no auth account)
+        // We store their profile directly and use a mock user object for navigation
+        setUser(null); // Students don't have auth accounts
         setProfile(transformStudent(student));
         setRole('student');
       } else {
@@ -258,9 +203,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(errorMessage);
+      
+      // Don't modify user/profile/role state on error - keep them as null
+      // This prevents unwanted navigation
+      
+      // Re-throw the error so the calling component can handle it
       throw err;
     } finally {
-      setLoading(false);
+      setLoading(false); // Only affects button loading, not navigator
     }
   }, [loadProfile]);
 
@@ -321,12 +271,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setError(null);
 
       // Clear state first to trigger navigation immediately
+      const currentRole = role;
       setUser(null);
       setProfile(null);
       setRole(null);
       
-      // Then call Supabase signOut
-      await authService.signOut();
+      // Only call Supabase signOut for teachers (students don't have auth sessions)
+      if (currentRole === 'teacher') {
+        await authService.signOut();
+      }
     } catch (err) {
       console.error('Sign out error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign out';
@@ -335,7 +288,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [role]);
 
   /**
    * Refresh the user profile
@@ -363,7 +316,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     profile,
     role,
-    loading,
+    loading: initializing || loading, // Combine both loading states
     error,
     signIn,
     signUp,

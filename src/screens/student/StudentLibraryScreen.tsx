@@ -7,7 +7,7 @@
  * Requirements: 2.3, 2.6, 5.3, 6.7, 8.1, 8.2, 11.8
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,26 +15,12 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/styles';
-
-interface Quiz {
-  id: string;
-  title: string;
-  questions: number;
-  duration: string;
-  status: 'available' | 'completed' | 'locked';
-  score?: number;
-}
-
-interface Material {
-  id: string;
-  title: string;
-  type: 'pdf' | 'video' | 'document';
-  uploadedBy: string;
-  date: string;
-}
+import * as studentService from '@/services/supabase/students';
 
 /**
  * StudentLibraryScreen Component
@@ -42,133 +28,158 @@ interface Material {
  * Shows quizzes and study materials in a kid-friendly interface.
  */
 export default function StudentLibraryScreen() {
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'quizzes' | 'materials'>('quizzes');
+  const [loading, setLoading] = useState(true);
+  const [classData, setClassData] = useState<any>(null);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
 
-  // Mock data
-  const quizzes: Quiz[] = [
-    {
-      id: '1',
-      title: 'Quiz de Fracciones',
-      questions: 10,
-      duration: '15 min',
-      status: 'available',
-    },
-    {
-      id: '2',
-      title: 'Examen de Suma y Resta',
-      questions: 15,
-      duration: '20 min',
-      status: 'completed',
-      score: 95,
-    },
-    {
-      id: '3',
-      title: 'Quiz de Multiplicación',
-      questions: 12,
-      duration: '18 min',
-      status: 'locked',
-    },
-  ];
+  useEffect(() => {
+    loadLibraryData();
+  }, [profile]);
 
-  const materials: Material[] = [
-    {
-      id: '1',
-      title: 'Guía de Fracciones.pdf',
-      type: 'pdf',
-      uploadedBy: 'Prof. García',
-      date: 'Hace 2 días',
-    },
-    {
-      id: '2',
-      title: 'Video: Cómo sumar fracciones',
-      type: 'video',
-      uploadedBy: 'Prof. García',
-      date: 'Hace 1 semana',
-    },
-    {
-      id: '3',
-      title: 'Ejercicios de práctica.docx',
-      type: 'document',
-      uploadedBy: 'Prof. García',
-      date: 'Hace 3 días',
-    },
-  ];
+  const loadLibraryData = async () => {
+    if (!profile?.id) return;
 
-  const getQuizStatusColor = (status: Quiz['status']) => {
+    try {
+      setLoading(true);
+
+      // Get student's class
+      const studentClass = await studentService.getStudentClass(profile.id);
+      setClassData(studentClass);
+
+      if (studentClass?.class_id) {
+        // Get quizzes and materials in parallel
+        const [quizzesData, materialsData, submissionsData] = await Promise.all([
+          studentService.getStudentQuizzes(studentClass.class_id),
+          studentService.getStudentMaterials(studentClass.class_id),
+          studentService.getStudentSubmissions(profile.id),
+        ]);
+
+        setQuizzes(quizzesData);
+        setMaterials(materialsData);
+        setSubmissions(submissionsData);
+      }
+    } catch (error) {
+      console.error('Error loading library data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getQuizStatus = (quizId: string) => {
+    const submission = submissions.find(sub => sub.quiz_id === quizId);
+    if (submission) {
+      return { status: 'completed' as const, score: submission.score };
+    }
+    return { status: 'available' as const, score: undefined };
+  };
+
+  const getQuizStatusColor = (status: 'available' | 'completed') => {
     switch (status) {
       case 'available':
         return theme.colors.student.main;
       case 'completed':
         return '#4CAF50';
-      case 'locked':
-        return '#9E9E9E';
     }
   };
 
-  const getQuizStatusText = (status: Quiz['status']) => {
+  const getQuizStatusText = (status: 'available' | 'completed') => {
     switch (status) {
       case 'available':
         return 'Disponible';
       case 'completed':
         return 'Completado';
-      case 'locked':
-        return 'Bloqueado';
     }
   };
 
-  const getQuizStatusIcon = (status: Quiz['status']) => {
+  const getQuizStatusIcon = (status: 'available' | 'completed') => {
     switch (status) {
       case 'available':
         return 'play-circle';
       case 'completed':
         return 'checkmark-circle';
-      case 'locked':
-        return 'lock-closed';
     }
   };
 
-  const getMaterialIcon = (type: Material['type']) => {
-    switch (type) {
-      case 'pdf':
-        return { icon: 'document-text', color: '#E74C3C', bg: '#FFEBEE' };
-      case 'video':
-        return { icon: 'play-circle', color: '#9C27B0', bg: '#F3E5F5' };
-      case 'document':
-        return { icon: 'document', color: '#2196F3', bg: '#E3F2FD' };
+  const getMaterialIcon = (contentType: string) => {
+    if (contentType?.includes('pdf')) {
+      return { icon: 'document-text', color: '#E74C3C', bg: '#FFEBEE' };
+    } else if (contentType?.includes('video')) {
+      return { icon: 'play-circle', color: '#9C27B0', bg: '#F3E5F5' };
+    } else {
+      return { icon: 'document', color: '#2196F3', bg: '#E3F2FD' };
     }
   };
 
-  const renderQuizzes = () => (
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays < 7) return `Hace ${diffDays} días`;
+    if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} semanas`;
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.student.main} />
+          <Text style={styles.loadingText}>Cargando biblioteca...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const renderQuizzes = () => {
+    if (quizzes.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="clipboard-outline" size={64} color="#ccc" />
+          <Text style={styles.emptyStateText}>No hay quizzes disponibles</Text>
+        </View>
+      );
+    }
+
+    return (
     <View style={styles.content}>
-      {quizzes.map((quiz) => (
+      {quizzes.map((quiz) => {
+        const { status, score } = getQuizStatus(quiz.id);
+        return (
         <TouchableOpacity
           key={quiz.id}
           style={styles.quizCard}
           activeOpacity={0.8}
-          disabled={quiz.status === 'locked'}
         >
           {/* Quiz Header */}
           <View style={styles.quizHeader}>
             <View style={[
               styles.quizStatusBadge,
-              { backgroundColor: getQuizStatusColor(quiz.status) + '20' }
+              { backgroundColor: getQuizStatusColor(status) + '20' }
             ]}>
               <Ionicons
-                name={getQuizStatusIcon(quiz.status) as any}
+                name={getQuizStatusIcon(status) as any}
                 size={16}
-                color={getQuizStatusColor(quiz.status)}
+                color={getQuizStatusColor(status)}
               />
               <Text style={[
                 styles.quizStatusText,
-                { color: getQuizStatusColor(quiz.status) }
+                { color: getQuizStatusColor(status) }
               ]}>
-                {getQuizStatusText(quiz.status)}
+                {getQuizStatusText(status)}
               </Text>
             </View>
-            {quiz.score !== undefined && (
+            {score !== undefined && (
               <View style={styles.scoreChip}>
                 <Ionicons name="star" size={14} color="#FFA000" />
-                <Text style={styles.scoreChipText}>{quiz.score} pts</Text>
+                <Text style={styles.scoreChipText}>{score} pts</Text>
               </View>
             )}
           </View>
@@ -180,36 +191,50 @@ export default function StudentLibraryScreen() {
           <View style={styles.quizInfo}>
             <View style={styles.quizInfoItem}>
               <Ionicons name="help-circle-outline" size={16} color="#666" />
-              <Text style={styles.quizInfoText}>{quiz.questions} preguntas</Text>
+              <Text style={styles.quizInfoText}>{quiz.question_count || 0} preguntas</Text>
             </View>
-            <View style={styles.quizInfoItem}>
-              <Ionicons name="time-outline" size={16} color="#666" />
-              <Text style={styles.quizInfoText}>{quiz.duration}</Text>
-            </View>
+            {quiz.duration_minutes && (
+              <View style={styles.quizInfoItem}>
+                <Ionicons name="time-outline" size={16} color="#666" />
+                <Text style={styles.quizInfoText}>{quiz.duration_minutes} min</Text>
+              </View>
+            )}
           </View>
 
           {/* Action Button */}
-          {quiz.status === 'available' && (
+          {status === 'available' && (
             <View style={styles.quizAction}>
               <Text style={styles.quizActionText}>Comenzar Quiz</Text>
               <Ionicons name="arrow-forward" size={20} color={theme.colors.student.main} />
             </View>
           )}
-          {quiz.status === 'completed' && (
+          {status === 'completed' && (
             <View style={styles.quizAction}>
               <Text style={styles.quizActionText}>Ver Resultados</Text>
               <Ionicons name="arrow-forward" size={20} color="#4CAF50" />
             </View>
           )}
         </TouchableOpacity>
-      ))}
+        );
+      })}
     </View>
-  );
+    );
+  };
 
-  const renderMaterials = () => (
+  const renderMaterials = () => {
+    if (materials.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="book-outline" size={64} color="#ccc" />
+          <Text style={styles.emptyStateText}>No hay materiales disponibles</Text>
+        </View>
+      );
+    }
+
+    return (
     <View style={styles.content}>
       {materials.map((material) => {
-        const iconData = getMaterialIcon(material.type);
+        const iconData = getMaterialIcon(material.content_type);
         return (
           <TouchableOpacity
             key={material.id}
@@ -222,10 +247,8 @@ export default function StudentLibraryScreen() {
             <View style={styles.materialContent}>
               <Text style={styles.materialTitle}>{material.title}</Text>
               <View style={styles.materialMeta}>
-                <Ionicons name="person-outline" size={14} color="#666" />
-                <Text style={styles.materialMetaText}>{material.uploadedBy}</Text>
-                <Text style={styles.materialMetaDot}>•</Text>
-                <Text style={styles.materialMetaText}>{material.date}</Text>
+                <Ionicons name="calendar-outline" size={14} color="#666" />
+                <Text style={styles.materialMetaText}>{formatDate(material.created_at)}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
@@ -233,7 +256,8 @@ export default function StudentLibraryScreen() {
         );
       })}
     </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -241,7 +265,9 @@ export default function StudentLibraryScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Biblioteca</Text>
-          <Text style={styles.headerSubtitle}>Matemáticas • 2do Grado</Text>
+          <Text style={styles.headerSubtitle}>
+            {classData?.classes?.name || 'Mi Clase'}
+          </Text>
         </View>
       </View>
 
@@ -298,6 +324,33 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F5F7FA',
+  },
+
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+    fontWeight: '600',
+  },
+
+  // Empty State
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    gap: 16,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '600',
   },
 
   // Header
