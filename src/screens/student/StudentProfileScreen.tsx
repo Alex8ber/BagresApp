@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { StudentTabParamList } from '@/types/navigation';
@@ -37,6 +38,7 @@ type Props = BottomTabScreenProps<StudentTabParamList, 'Profile'>;
 export default function StudentProfileScreen({ navigation }: Props) {
   const { profile, signOut, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [classData, setClassData] = useState<any>(null);
   const [stats, setStats] = useState({
     completedQuizzes: 0,
@@ -79,30 +81,24 @@ export default function StudentProfileScreen({ navigation }: Props) {
   };
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro que deseas salir?',
-      [
-        {
-          text: 'No',
-          style: 'cancel',
-        },
-        {
-          text: 'Sí, salir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setSigningOut(true);
-              await signOut();
-            } catch (error) {
-              Alert.alert('Error', 'No se pudo cerrar sesión. Intenta de nuevo.');
-              setSigningOut(false);
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+    setShowSignOutModal(true);
+  };
+
+  const confirmSignOut = async () => {
+    try {
+      setSigningOut(true);
+      setShowSignOutModal(false);
+      await signOut();
+    } catch (error) {
+      console.error('[StudentProfile] Sign out failed:', error);
+      Alert.alert('Error', 'No se pudo cerrar sesión. Intenta de nuevo.');
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
+  const cancelSignOut = () => {
+    setShowSignOutModal(false);
   };
 
   const handleEdit = () => {
@@ -241,6 +237,43 @@ export default function StudentProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Sign Out Confirmation Modal */}
+      <Modal
+        visible={showSignOutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelSignOut}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="log-out-outline" size={48} color="#E74C3C" />
+            </View>
+            
+            <Text style={styles.modalTitle}>Cerrar Sesión</Text>
+            <Text style={styles.modalMessage}>
+              ¿Estás seguro que deseas cerrar sesión?
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={cancelSignOut}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={confirmSignOut}
+              >
+                <Text style={styles.modalConfirmButtonText}>Cerrar Sesión</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -498,5 +531,88 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#E74C3C',
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFEBEE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  modalMessage: {
+    fontSize: 15,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 28,
+    lineHeight: 22,
+  },
+
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+  },
+
+  modalCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
+  },
+
+  modalConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#E74C3C',
+    alignItems: 'center',
+  },
+
+  modalConfirmButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

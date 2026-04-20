@@ -24,6 +24,16 @@ export type RootStackParamList = {
   QuizEditor: { quizId: string; classId: string; className: string };
   QuizDetail: { quizId: string; classId: string };
   StudentQuiz: { quizId: string };
+  StudentTakeQuiz: { quizId: string };
+  StudentQuizResults: {
+    quizId: string;
+    quizTitle: string;
+    score: number;
+    correctAnswers: number;
+    totalQuestions: number;
+    passed: boolean;
+    passingScore: number;
+  };
   TeacherMaterialDetail: { materialId: string; classId: string };
   TeacherReports: { classId?: string };
   TeacherSchedule: undefined;

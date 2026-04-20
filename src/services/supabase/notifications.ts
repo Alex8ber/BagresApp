@@ -58,15 +58,14 @@ export async function getUnreadCount(userId: string, userType: 'student' | 'teac
       .eq('read', false);
 
     if (error) {
-      throw new DatabaseError(error.message);
+      console.warn('Notifications table error:', error.message);
+      return 0;
     }
 
     return count || 0;
   } catch (error) {
-    if (error instanceof DatabaseError) {
-      throw error;
-    }
-    throw new NetworkError('Failed to fetch unread count');
+    console.warn('Failed to fetch unread count:', error);
+    return 0;
   }
 }
 

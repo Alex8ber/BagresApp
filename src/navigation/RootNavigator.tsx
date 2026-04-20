@@ -37,6 +37,8 @@ import TeacherScheduleScreen from '@/screens/teacher/TeacherScheduleScreen';
 
 // Student Screens
 import { StudentDashboardTabs } from '@/screens/student';
+import StudentTakeQuizScreen from '@/screens/student/StudentTakeQuizScreen';
+import StudentQuizResultsScreen from '@/screens/student/StudentQuizResultsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -268,6 +270,22 @@ export function RootNavigator() {
           <Stack.Screen
             name="StudentDashboard"
             component={StudentDashboardTabs}
+            options={{
+              headerShown: false,
+            }}
+          />
+          
+          <Stack.Screen
+            name="StudentTakeQuiz"
+            component={StudentTakeQuizScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          
+          <Stack.Screen
+            name="StudentQuizResults"
+            component={StudentQuizResultsScreen}
             options={{
               headerShown: false,
             }}

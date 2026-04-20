@@ -272,6 +272,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Clear state first to trigger navigation immediately
       const currentRole = role;
+      
       setUser(null);
       setProfile(null);
       setRole(null);

@@ -65,25 +65,20 @@ export default function StudentMainScreen() {
       setClassData(studentClass);
 
       if (studentClass?.class_id) {
-        // Get all data in parallel
-        const [quizzes, activities, materials] = await Promise.all([
+        // Get all data in parallel (skip activities for now as it requires quiz_submissions table)
+        const [quizzes, materials] = await Promise.all([
           studentService.getUpcomingQuizzes(studentClass.class_id),
-          studentService.getStudentRecentActivities(profile.id, studentClass.class_id),
           studentService.getStudentMaterials(studentClass.class_id),
         ]);
 
         setUpcomingQuizzes(quizzes);
-        setRecentActivities(activities);
+        setRecentActivities([]); // Empty for now until quiz_submissions table exists
         
         // Get recent materials (last 3)
         setRecentMaterials(materials.slice(0, 3));
         
-        // Get active quizzes (available now)
-        const now = new Date().toISOString();
-        const active = quizzes.filter(q => 
-          q.available_from <= now && q.available_until >= now
-        );
-        setActiveQuizzes(active.slice(0, 3));
+        // Get active quizzes (all quizzes for now)
+        setActiveQuizzes(quizzes.slice(0, 3));
       }
     } catch (error) {
       console.error('Error loading student data:', error);

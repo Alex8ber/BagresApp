@@ -90,6 +90,7 @@ export default function TeacherCreateQuizScreen({ navigation, route }: Props) {
           className: className,
         });
       } catch (err) {
+        console.error('[TeacherCreateQuizScreen] Error creating quiz:', err);
         const errorMessage = err instanceof Error ? err.message : 'Error al crear el cuestionario';
         setError(errorMessage);
         Alert.alert('Error', errorMessage);

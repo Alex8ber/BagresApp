@@ -19,9 +19,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTeacher } from '@/context/TeacherContext';
+import { useAuth } from '@/hooks/useAuth';
+import { createQuiz, createQuestion, createOption } from '@/services/supabase/quizzes';
 import type { RootStackScreenProps } from '@/types/navigation';
 
 // ============================================================================
@@ -50,6 +53,7 @@ type Props = RootStackScreenProps<'TeacherCreateTest'>;
 
 export default function TeacherCreateTestScreen({ navigation, route }: Props) {
   const { classes } = useTeacher();
+  const { user } = useAuth();
   
   // Optional classId parameter
   const classIdParam = route.params?.classId;
@@ -59,8 +63,10 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
   );
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form state
+  const [quizTitle, setQuizTitle] = useState('');
   const [currentQuestionText, setCurrentQuestionText] = useState('');
   const [optionA, setOptionA] = useState('');
   const [optionB, setOptionB] = useState('');
@@ -71,8 +77,8 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
   const handleAddQuestion = () => {
     if (!currentQuestionText || !optionA || !optionB || !optionC || !optionD) {
       Alert.alert(
-        'Missing Fields',
-        'Please fill in the question and all 4 options.'
+        'Campos Incompletos',
+        'Por favor completa la pregunta y las 4 opciones.'
       );
       return;
     }
@@ -104,24 +110,96 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
     setQuestions(questions.filter((q) => q.id !== id));
   };
 
-  const handleSaveTest = () => {
+  const handleSaveTest = async () => {
     if (!selectedClassId) {
       Alert.alert(
-        'No Class Selected',
-        'Please select a class to attach this test to before saving.'
+        'Clase no seleccionada',
+        'Por favor selecciona una clase antes de guardar el quiz.'
       );
       return;
     }
     if (questions.length === 0) {
       Alert.alert(
-        'Empty Test',
-        'Please add at least one question before saving.'
+        'Quiz vacío',
+        'Por favor agrega al menos una pregunta antes de guardar.'
       );
       return;
     }
-    Alert.alert('Success', 'Test saved successfully!', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+    if (!quizTitle.trim()) {
+      Alert.alert(
+        'Título requerido',
+        'Por favor ingresa un título para el quiz.'
+      );
+      return;
+    }
+    if (!user?.id) {
+      Alert.alert('Error', 'No se pudo identificar al profesor.');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      console.log('[TeacherCreateTestScreen] Guardando quiz...');
+      console.log('[TeacherCreateTestScreen] class_id:', selectedClassId);
+      console.log('[TeacherCreateTestScreen] teacher_id:', user.id);
+      console.log('[TeacherCreateTestScreen] title:', quizTitle);
+      console.log('[TeacherCreateTestScreen] questions:', questions.length);
+
+      // 1. Create the quiz
+      const quiz = await createQuiz({
+        title: quizTitle.trim(),
+        class_id: selectedClassId,
+        teacher_id: user.id,
+        time_limit_minutes: 60, // Default 60 minutes
+        passing_score: 70, // Default 70%
+        is_published: true,
+      });
+
+      console.log('[TeacherCreateTestScreen] Quiz creado:', quiz.id);
+
+      // 2. Create all questions and their options
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        
+        // Create question
+        const question = await createQuestion({
+          quiz_id: quiz.id,
+          question_text: q.text,
+          question_type: 'multiple_choice',
+          points: 1,
+          order_index: i,
+        });
+
+        console.log('[TeacherCreateTestScreen] Pregunta creada:', question.id);
+
+        // Create options
+        const optionKeys: OptionKey[] = ['A', 'B', 'C', 'D'];
+        for (let j = 0; j < optionKeys.length; j++) {
+          const key = optionKeys[j];
+          await createOption({
+            question_id: question.id,
+            option_text: q.options[key],
+            is_correct: q.correctAnswer === key,
+            order_index: j,
+          });
+        }
+      }
+
+      console.log('[TeacherCreateTestScreen] Quiz guardado exitosamente');
+
+      Alert.alert('¡Éxito!', 'Quiz guardado correctamente.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      console.error('[TeacherCreateTestScreen] Error guardando quiz:', error);
+      Alert.alert(
+        'Error',
+        'No se pudo guardar el quiz. Por favor intenta de nuevo.'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getOptionValue = (opt: OptionKey): string => {
@@ -156,45 +234,74 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
 
   const renderEditMode = () => (
     <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.sectionTitle}>1. Select a Class</Text>
+      <Text style={styles.sectionTitle}>1. Título del Quiz</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Ej: Examen de Matemáticas - Unidad 1"
+        placeholderTextColor="#A0AEC0"
+        value={quizTitle}
+        onChangeText={setQuizTitle}
+      />
+
+      <Text style={styles.sectionTitle}>2. Selecciona una Clase</Text>
       {classes.length === 0 ? (
         <Text style={styles.emptyClassText}>
-          You need to create a class first from the dashboard.
+          Necesitas crear una clase primero desde el panel principal.
         </Text>
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.classList}
-        >
-          {classes.map((cls: any) => (
-            <TouchableOpacity
-              key={cls.id}
-              style={[
-                styles.classPill,
-                selectedClassId === cls.id && styles.classPillActive,
-              ]}
-              onPress={() => setSelectedClassId(cls.id)}
-            >
-              <Text
-                style={[
-                  styles.classPillText,
-                  selectedClassId === cls.id && styles.classPillTextActive,
-                ]}
-              >
-                {cls.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <>
+          <Text style={styles.debugText}>
+            Clases disponibles: {classes.length}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.classList}
+          >
+            {classes.map((cls: any) => {
+              console.log('🏫 [TeacherCreateTestScreen] Class option:', {
+                id: cls.id,
+                name: cls.name,
+                isSelected: selectedClassId === cls.id
+              });
+              return (
+                <TouchableOpacity
+                  key={cls.id}
+                  style={[
+                    styles.classPill,
+                    selectedClassId === cls.id && styles.classPillActive,
+                  ]}
+                  onPress={() => {
+                    console.log('🏫 [TeacherCreateTestScreen] Selected class:', cls.id, cls.name);
+                    setSelectedClassId(cls.id);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.classPillText,
+                      selectedClassId === cls.id && styles.classPillTextActive,
+                    ]}
+                  >
+                    {cls.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          {selectedClassId && (
+            <Text style={styles.debugText}>
+              Clase seleccionada ID: {selectedClassId}
+            </Text>
+          )}
+        </>
       )}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>2. Add New Maths Question</Text>
+        <Text style={styles.cardTitle}>3. Agregar Nueva Pregunta</Text>
 
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="e.g. What is the derivative of x^2?"
+          placeholder="Ej: ¿Cuál es la derivada de x^2?"
           placeholderTextColor="#A0AEC0"
           value={currentQuestionText}
           onChangeText={setCurrentQuestionText}
@@ -223,7 +330,7 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
               </TouchableOpacity>
               <TextInput
                 style={styles.optionInput}
-                placeholder={`Option ${opt}`}
+                placeholder={`Opción ${opt}`}
                 placeholderTextColor="#A0AEC0"
                 value={getOptionValue(opt)}
                 onChangeText={(text) => setOptionValue(opt, text)}
@@ -239,12 +346,12 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
             color="#FFF"
             style={{ marginRight: 8 }}
           />
-          <Text style={styles.addBtnText}>Add Question</Text>
+          <Text style={styles.addBtnText}>Agregar Pregunta</Text>
         </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionTitle}>
-        Added Questions ({questions.length})
+        Preguntas Agregadas ({questions.length})
       </Text>
 
       {questions.map((q, index) => (
@@ -285,9 +392,9 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
   const renderPreviewMode = () => (
     <ScrollView style={styles.content}>
       <View style={styles.previewHeaderCard}>
-        <Text style={styles.previewTitle}>Maths Test Preview</Text>
+        <Text style={styles.previewTitle}>{quizTitle || 'Vista Previa del Quiz'}</Text>
         <Text style={styles.previewSubtitle}>
-          Total Questions: {questions.length}
+          Total de Preguntas: {questions.length}
         </Text>
       </View>
 
@@ -342,14 +449,20 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 style={styles.bottomSecondaryBtn}
                 onPress={() => setIsPreviewMode(false)}
+                disabled={isSaving}
               >
-                <Text style={styles.bottomSecondaryBtnText}>Edit</Text>
+                <Text style={styles.bottomSecondaryBtnText}>Editar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.bottomPrimaryBtn}
+                style={[styles.bottomPrimaryBtn, isSaving && styles.bottomPrimaryBtnDisabled]}
                 onPress={handleSaveTest}
+                disabled={isSaving}
               >
-                <Text style={styles.bottomPrimaryBtnText}>Save Test</Text>
+                {isSaving ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.bottomPrimaryBtnText}>Guardar Quiz</Text>
+                )}
               </TouchableOpacity>
             </>
           ) : (
@@ -359,8 +472,8 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
                 onPress={() => {
                   if (questions.length === 0) {
                     Alert.alert(
-                      'No Questions',
-                      'Add some questions before previewing.'
+                      'Sin Preguntas',
+                      'Agrega algunas preguntas antes de previsualizar.'
                     );
                     return;
                   }
@@ -373,7 +486,7 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
                   color="#4285F4"
                   style={{ marginRight: 8 }}
                 />
-                <Text style={styles.bottomSecondaryBtnText}>Preview Test</Text>
+                <Text style={styles.bottomSecondaryBtnText}>Vista Previa</Text>
               </TouchableOpacity>
             </>
           )}
@@ -407,6 +520,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2D3748',
     marginBottom: 15,
+  },
+
+  debugText: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 8,
+    marginBottom: 8,
+    fontFamily: 'monospace',
   },
 
   emptyClassText: {
@@ -655,6 +776,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bottomPrimaryBtnDisabled: {
+    backgroundColor: '#A0AEC0',
   },
   bottomPrimaryBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });

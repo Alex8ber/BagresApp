@@ -335,13 +335,7 @@ export async function joinClassWithCode(
     // 2. Check if student already exists in this class (case-insensitive name match)
     const { data: existingEnrollments, error: enrollError } = await supabase
       .from('class_students')
-      .select(`
-        student_id,
-        students (
-          id,
-          full_name
-        )
-      `)
+      .select('student_id')
       .eq('class_id', classData.id);
 
     console.log('📊 Existing enrollments:', existingEnrollments);
@@ -351,10 +345,23 @@ export async function joinClassWithCode(
       throw new DatabaseError(enrollError.message);
     }
 
-    // Find student with matching name (case-insensitive)
-    const existingStudent = existingEnrollments?.find(enrollment => 
-      enrollment.students?.full_name?.toLowerCase() === normalizedName.toLowerCase()
-    );
+    // If there are enrollments, check each student's name
+    let existingStudent = null;
+    if (existingEnrollments && existingEnrollments.length > 0) {
+      for (const enrollment of existingEnrollments) {
+        const { data: studentData, error: studentError } = await supabase
+          .from('students')
+          .select('id, full_name')
+          .eq('id', enrollment.student_id)
+          .single();
+
+        if (!studentError && studentData && 
+            studentData.full_name?.toLowerCase() === normalizedName.toLowerCase()) {
+          existingStudent = { student_id: studentData.id, students: studentData };
+          break;
+        }
+      }
+    }
 
     if (existingStudent) {
       // Student already exists - this is a LOGIN

@@ -96,6 +96,7 @@ export async function createQuiz(quizData: QuizInsert): Promise<Quiz> {
       .single();
 
     if (error) {
+      console.error('[createQuiz] Database error:', error);
       throw new DatabaseError(error.message);
     }
 

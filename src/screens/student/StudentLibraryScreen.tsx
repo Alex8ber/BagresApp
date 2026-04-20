@@ -18,9 +18,15 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/types/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/styles';
 import * as studentService from '@/services/supabase/students';
+import { calculateSubmissionScore } from '@/services/supabase/students';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 /**
  * StudentLibraryScreen Component
@@ -28,6 +34,7 @@ import * as studentService from '@/services/supabase/students';
  * Shows quizzes and study materials in a kid-friendly interface.
  */
 export default function StudentLibraryScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'quizzes' | 'materials'>('quizzes');
   const [loading, setLoading] = useState(true);
@@ -35,13 +42,16 @@ export default function StudentLibraryScreen() {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
+  const [submissionScores, setSubmissionScores] = useState<Record<string, { score: number; correctAnswers: number; totalQuestions: number }>>({});
 
   useEffect(() => {
     loadLibraryData();
   }, [profile]);
 
   const loadLibraryData = async () => {
-    if (!profile?.id) return;
+    if (!profile?.id) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -51,7 +61,7 @@ export default function StudentLibraryScreen() {
       setClassData(studentClass);
 
       if (studentClass?.class_id) {
-        // Get quizzes and materials in parallel
+        // Get quizzes, materials, and submissions
         const [quizzesData, materialsData, submissionsData] = await Promise.all([
           studentService.getStudentQuizzes(studentClass.class_id),
           studentService.getStudentMaterials(studentClass.class_id),
@@ -61,6 +71,14 @@ export default function StudentLibraryScreen() {
         setQuizzes(quizzesData);
         setMaterials(materialsData);
         setSubmissions(submissionsData);
+        
+        // Calculate scores for all submissions
+        const scores: Record<string, any> = {};
+        for (const submission of submissionsData) {
+          const scoreData = await calculateSubmissionScore(submission, submission.quiz_id);
+          scores[submission.quiz_id] = scoreData;
+        }
+        setSubmissionScores(scores);
       }
     } catch (error) {
       console.error('Error loading library data:', error);
@@ -72,9 +90,15 @@ export default function StudentLibraryScreen() {
   const getQuizStatus = (quizId: string) => {
     const submission = submissions.find(sub => sub.quiz_id === quizId);
     if (submission) {
-      return { status: 'completed' as const, score: submission.score };
+      const scoreData = submissionScores[quizId];
+      return { 
+        status: 'completed' as const, 
+        score: scoreData?.score || 0,
+        correctAnswers: scoreData?.correctAnswers || 0,
+        totalQuestions: scoreData?.totalQuestions || 0,
+      };
     }
-    return { status: 'available' as const, score: undefined };
+    return { status: 'available' as const, score: undefined, correctAnswers: undefined, totalQuestions: undefined };
   };
 
   const getQuizStatusColor = (status: 'available' | 'completed') => {
@@ -151,12 +175,31 @@ export default function StudentLibraryScreen() {
     return (
     <View style={styles.content}>
       {quizzes.map((quiz) => {
-        const { status, score } = getQuizStatus(quiz.id);
+        const { status, score, correctAnswers, totalQuestions } = getQuizStatus(quiz.id);
+        const submission = submissions.find(sub => sub.quiz_id === quiz.id);
+        
         return (
         <TouchableOpacity
           key={quiz.id}
           style={styles.quizCard}
           activeOpacity={0.8}
+          onPress={() => {
+            if (status === 'completed' && submission && score !== undefined && correctAnswers !== undefined && totalQuestions !== undefined) {
+              // Navigate to results screen with calculated data
+              navigation.navigate('StudentQuizResults', {
+                quizId: quiz.id,
+                quizTitle: quiz.title,
+                score,
+                correctAnswers,
+                totalQuestions,
+                passed: score >= (quiz.passing_score || 70),
+                passingScore: quiz.passing_score || 70,
+              });
+            } else {
+              // Navigate to quiz taking screen
+              navigation.navigate('StudentTakeQuiz', { quizId: quiz.id });
+            }
+          }}
         >
           {/* Quiz Header */}
           <View style={styles.quizHeader}>
@@ -189,16 +232,16 @@ export default function StudentLibraryScreen() {
 
           {/* Quiz Info */}
           <View style={styles.quizInfo}>
-            <View style={styles.quizInfoItem}>
-              <Ionicons name="help-circle-outline" size={16} color="#666" />
-              <Text style={styles.quizInfoText}>{quiz.question_count || 0} preguntas</Text>
-            </View>
             {quiz.duration_minutes && (
               <View style={styles.quizInfoItem}>
                 <Ionicons name="time-outline" size={16} color="#666" />
                 <Text style={styles.quizInfoText}>{quiz.duration_minutes} min</Text>
               </View>
             )}
+            <View style={styles.quizInfoItem}>
+              <Ionicons name="calendar-outline" size={16} color="#666" />
+              <Text style={styles.quizInfoText}>{formatDate(quiz.created_at)}</Text>
+            </View>
           </View>
 
           {/* Action Button */}
@@ -209,8 +252,8 @@ export default function StudentLibraryScreen() {
             </View>
           )}
           {status === 'completed' && (
-            <View style={styles.quizAction}>
-              <Text style={styles.quizActionText}>Ver Resultados</Text>
+            <View style={[styles.quizAction, styles.quizActionCompleted]}>
+              <Text style={[styles.quizActionText, styles.quizActionTextCompleted]}>Ver Resultados</Text>
               <Ionicons name="arrow-forward" size={20} color="#4CAF50" />
             </View>
           )}
@@ -519,10 +562,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
+  quizActionCompleted: {
+    backgroundColor: '#E8F5E9',
+  },
+
   quizActionText: {
     fontSize: 15,
     fontWeight: '700',
     color: theme.colors.student.main,
+  },
+
+  quizActionTextCompleted: {
+    color: '#4CAF50',
   },
 
   // Material Card
