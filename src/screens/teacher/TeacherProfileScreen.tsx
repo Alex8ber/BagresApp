@@ -120,8 +120,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
   };
 
   const handleEdit = () => {
-    setIsEditing(!isEditing);
-    // TODO: Implement edit functionality
+    navigation.navigate('TeacherEditProfile');
   };
 
   if (loading) {

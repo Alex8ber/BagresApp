@@ -33,7 +33,10 @@ import QuizEditorScreen from '@/screens/teacher/QuizEditorScreen';
 import QuizDetailScreen from '@/screens/teacher/QuizDetailScreen';
 import TeacherMaterialDetailScreen from '@/screens/teacher/TeacherMaterialDetailScreen';
 import TeacherReportsScreen from '@/screens/teacher/TeacherReportsScreen';
+import TeacherSubmissionDetailScreen from '@/screens/teacher/TeacherSubmissionDetailScreen';
 import TeacherScheduleScreen from '@/screens/teacher/TeacherScheduleScreen';
+import TeacherEditProfileScreen from '@/screens/teacher/TeacherEditProfileScreen';
+import TeacherNotificationsScreen from '@/screens/teacher/TeacherNotificationsScreen';
 
 // Student Screens
 import { StudentDashboardTabs } from '@/screens/student';
@@ -246,7 +249,16 @@ export function RootNavigator() {
             name="TeacherReports"
             component={TeacherReportsScreen}
             options={{
-              title: 'Reports',
+              title: 'Reportes',
+              headerShown: false,
+            }}
+          />
+          
+          <Stack.Screen
+            name="TeacherSubmissionDetail"
+            component={TeacherSubmissionDetailScreen}
+            options={{
+              title: 'Detalle de Respuestas',
               headerStyle: {
                 backgroundColor: colors.teacher.main,
               },
@@ -261,6 +273,22 @@ export function RootNavigator() {
               headerStyle: {
                 backgroundColor: colors.teacher.main,
               },
+            }}
+          />
+
+          <Stack.Screen
+            name="TeacherEditProfile"
+            component={TeacherEditProfileScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+
+          <Stack.Screen
+            name="TeacherNotifications"
+            component={TeacherNotificationsScreen}
+            options={{
+              headerShown: false,
             }}
           />
         </>

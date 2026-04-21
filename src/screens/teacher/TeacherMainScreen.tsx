@@ -7,7 +7,7 @@
  * Requirements: 1.9, 2.1, 5.2, 5.9, 10.14, 11.1, 11.9
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { TeacherTabScreenProps } from '@/types/navigation';
@@ -18,6 +18,7 @@ import { theme } from '@/styles';
 import { useAuth } from '@/hooks/useAuth';
 import { useTeacherClasses } from '@/hooks';
 import type { Teacher } from '@/types/models';
+import { getClassStudentCount } from '@/services/supabase/classes';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -34,6 +35,52 @@ export default function TeacherMainScreen(_props: Props) {
   const { classes, loading, refetch } = useTeacherClasses();
   
   const teacherProfile = profile as Teacher | null;
+  const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
+  const [loadingCounts, setLoadingCounts] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Load notification count
+  useEffect(() => {
+    loadNotificationCount();
+  }, [profile]);
+
+  const loadNotificationCount = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { getUnreadCount } = await import('@/services/supabase/notifications');
+      const count = await getUnreadCount(profile.id, 'teacher');
+      setUnreadNotifications(count);
+    } catch (error) {
+      console.error('Error loading notification count:', error);
+    }
+  };
+
+  // Load student counts for all classes
+  const loadStudentCounts = async () => {
+    if (classes.length === 0) return;
+    
+    setLoadingCounts(true);
+    try {
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        classes.map(async (classItem) => {
+          const count = await getClassStudentCount(classItem.id);
+          counts[classItem.id] = count;
+        })
+      );
+      setStudentCounts(counts);
+    } catch (error) {
+      console.error('Error loading student counts:', error);
+    } finally {
+      setLoadingCounts(false);
+    }
+  };
+
+  // Load student counts when classes change
+  useEffect(() => {
+    loadStudentCounts();
+  }, [classes]);
 
   // Refetch classes when screen comes into focus
   useFocusEffect(
@@ -64,7 +111,7 @@ export default function TeacherMainScreen(_props: Props) {
   const activeClasses = classes.map((classItem, index) => ({
     id: classItem.id,
     name: classItem.name,
-    students: 0, // TODO: Get actual student count from database
+    students: studentCounts[classItem.id] || 0,
     color: getSubjectColor(index),
     emoji: classItem.class_icon || getSubjectEmoji(classItem.subject),
     imageUrl: classItem.class_image_url,
@@ -96,8 +143,18 @@ export default function TeacherMainScreen(_props: Props) {
               <Text style={styles.userName}>¡{profile?.fullName || 'Sr. Smith'}!</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('TeacherNotifications')}
+          >
             <Ionicons name="notifications-outline" size={24} color="#fff" />
+            {unreadNotifications > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -193,7 +250,7 @@ export default function TeacherMainScreen(_props: Props) {
 
             <TouchableOpacity 
               style={styles.actionCard}
-              onPress={() => console.log('Lista de Alumnos')}
+              onPress={() => navigation.navigate('TeacherDashboard', { screen: 'Classes' })}
               activeOpacity={0.8}
             >
               <View style={[styles.actionIcon, { backgroundColor: '#E3F2FD' }]}>
@@ -318,6 +375,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#E53E3E',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.teacher.main,
+  },
+
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
 
   // Ready Card

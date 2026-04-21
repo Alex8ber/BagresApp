@@ -36,6 +36,14 @@ export type RootStackParamList = {
   };
   TeacherMaterialDetail: { materialId: string; classId: string };
   TeacherReports: { classId?: string };
+  TeacherSubmissionDetail: {
+    submissionId: string;
+    quizId: string;
+    studentName: string;
+    score: number;
+  };
+  TeacherEditProfile: undefined;
+  TeacherNotifications: undefined;
   TeacherSchedule: undefined;
 };
 

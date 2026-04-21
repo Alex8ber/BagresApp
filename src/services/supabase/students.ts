@@ -277,6 +277,35 @@ export async function submitQuiz(
 }
 
 /**
+ * Get all submissions for a specific quiz
+ * Used by teachers to see student responses
+ */
+export async function getQuizSubmissions(quizId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('quiz_submissions')
+      .select(`
+        *,
+        students (
+          full_name
+        )
+      `)
+      .eq('quiz_id', quizId)
+      .order('submitted_at', { ascending: false });
+
+    if (error) {
+      console.warn('Quiz submissions error:', error.message);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.warn('Failed to fetch quiz submissions:', error);
+    return [];
+  }
+}
+
+/**
  * Get recent activities for a student
  * Combines submissions and available quizzes
  */

@@ -1,48 +1,39 @@
 /**
  * TeacherScheduleScreen
  * 
- * Screen for scheduling classes and tests with automatic student notifications.
- * Allows teachers to create, view, and manage scheduled events.
+ * Screen for viewing scheduled quizzes with availability dates.
+ * Shows quizzes that have been programmed with specific start/end dates.
  * 
  * Requirements: 1.9, 2.1, 5.2, 5.9, 10.14, 11.1, 11.9
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   FlatList,
-  TextInput,
   TouchableOpacity,
-  Modal,
-  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackScreenProps } from '@/types/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { getTeacherQuizzes } from '@/services/supabase/quizzes';
+import { theme } from '@/styles';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type EventType = 'Test' | 'Class';
-
-interface ScheduledEvent {
+interface ScheduledQuiz {
   id: string;
   title: string;
-  type: EventType;
-  date: string;
-  time: string;
-  description: string;
-}
-
-interface NewEventForm {
-  title: string;
-  type: EventType;
-  date: string;
-  time: string;
-  description: string;
+  class_id: string;
+  available_from: string | null;
+  available_until: string | null;
+  is_published: boolean;
 }
 
 type Props = RootStackScreenProps<'TeacherSchedule'>;
@@ -52,274 +43,166 @@ type Props = RootStackScreenProps<'TeacherSchedule'>;
 // ============================================================================
 
 export default function TeacherScheduleScreen({ navigation }: Props) {
-  const [events, setEvents] = useState<ScheduledEvent[]>([
-    {
-      id: '1',
-      title: 'Algebra Midterm Test',
-      type: 'Test',
-      date: '2026-03-20',
-      time: '10:00 AM',
-      description: 'Covers chapters 1-4',
-    },
-    {
-      id: '2',
-      title: 'Calculus Review Class',
-      type: 'Class',
-      date: '2026-03-22',
-      time: '02:00 PM',
-      description: 'Review session for the upcoming final.',
-    },
-  ]);
+  const { user } = useAuth();
+  const [quizzes, setQuizzes] = useState<ScheduledQuiz[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [newEvent, setNewEvent] = useState<NewEventForm>({
-    title: '',
-    type: 'Test',
-    date: '',
-    time: '',
-    description: '',
-  });
+  useEffect(() => {
+    loadScheduledQuizzes();
+  }, []);
 
-  // Configure navigation header with add button
-  React.useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => setModalVisible(true)}
-          style={{ marginRight: 15 }}
-        >
-          <Ionicons name="add" size={28} color="#4285F4" />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation]);
+  const loadScheduledQuizzes = async () => {
+    if (!user?.id) return;
 
-  const handleAddEvent = () => {
-    if (!newEvent.title || !newEvent.date || !newEvent.time) {
-      return; // Simple validation
+    try {
+      setLoading(true);
+      const allQuizzes = await getTeacherQuizzes(user.id);
+      
+      // Filter only quizzes that have scheduling (available_from or available_until)
+      const scheduled = allQuizzes.filter(
+        (quiz) => quiz.available_from || quiz.available_until
+      );
+      
+      setQuizzes(scheduled);
+    } catch (error) {
+      console.error('Error loading scheduled quizzes:', error);
+    } finally {
+      setLoading(false);
     }
-
-    const eventToAdd: ScheduledEvent = {
-      ...newEvent,
-      id: Date.now().toString(),
-    };
-
-    setEvents(
-      [...events, eventToAdd].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-      )
-    );
-    setNewEvent({
-      title: '',
-      type: 'Test',
-      date: '',
-      time: '',
-      description: '',
-    });
-    setModalVisible(false);
   };
 
-  const renderEvent = ({ item }: { item: ScheduledEvent }) => {
-    const isTest = item.type === 'Test';
+  const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return 'Sin límite';
+    
+    const date = new Date(dateString);
+    return date.toLocaleString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getQuizStatus = (quiz: ScheduledQuiz) => {
+    const now = new Date();
+    const availableFrom = quiz.available_from ? new Date(quiz.available_from) : null;
+    const availableUntil = quiz.available_until ? new Date(quiz.available_until) : null;
+
+    if (!quiz.is_published) {
+      return { status: 'draft', color: '#718096', text: 'Borrador' };
+    }
+
+    if (availableFrom && now < availableFrom) {
+      return { status: 'scheduled', color: '#4285F4', text: 'Programado' };
+    }
+
+    if (availableUntil && now > availableUntil) {
+      return { status: 'ended', color: '#E53E3E', text: 'Finalizado' };
+    }
+
+    return { status: 'active', color: '#38A169', text: 'Activo' };
+  };
+
+  const renderQuiz = ({ item }: { item: ScheduledQuiz }) => {
+    const status = getQuizStatus(item);
 
     return (
       <View style={styles.cardContainer}>
         <View
           style={[
             styles.cardAccent,
-            { backgroundColor: isTest ? '#EA4335' : '#34A853' },
+            { backgroundColor: status.color },
           ]}
         />
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
             <View
               style={[
-                styles.typeBadge,
-                { backgroundColor: isTest ? '#FCE8E6' : '#E6F4EA' },
+                styles.statusBadge,
+                { backgroundColor: `${status.color}20` },
               ]}
             >
               <Text
                 style={[
-                  styles.typeText,
-                  { color: isTest ? '#EA4335' : '#34A853' },
+                  styles.statusText,
+                  { color: status.color },
                 ]}
               >
-                {item.type}
+                {status.text}
               </Text>
             </View>
-            <View style={styles.dateContainer}>
-              <Ionicons name="calendar-outline" size={14} color="#718096" />
-              <Text style={styles.dateText}>{item.date}</Text>
+          </View>
+
+          <Text style={styles.quizTitle}>{item.title}</Text>
+
+          {item.available_from && (
+            <View style={styles.dateRow}>
+              <Ionicons name="play-circle-outline" size={16} color="#4A5568" />
+              <Text style={styles.dateLabel}>Disponible desde:</Text>
+              <Text style={styles.dateValue}>{formatDateTime(item.available_from)}</Text>
             </View>
-          </View>
+          )}
 
-          <Text style={styles.eventTitle}>{item.title}</Text>
+          {item.available_until && (
+            <View style={styles.dateRow}>
+              <Ionicons name="stop-circle-outline" size={16} color="#4A5568" />
+              <Text style={styles.dateLabel}>Disponible hasta:</Text>
+              <Text style={styles.dateValue}>{formatDateTime(item.available_until)}</Text>
+            </View>
+          )}
 
-          <View style={styles.timeContainer}>
-            <Ionicons name="time-outline" size={16} color="#4A5568" />
-            <Text style={styles.timeText}>{item.time}</Text>
-          </View>
-
-          {item.description ? (
-            <Text style={styles.descriptionText}>{item.description}</Text>
-          ) : null}
-
-          <View style={styles.notificationBanner}>
-            <Ionicons name="notifications" size={16} color="#4285F4" />
-            <Text style={styles.notificationText}>
-              Students will be notified
-            </Text>
-          </View>
+          {!item.available_from && item.available_until && (
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle-outline" size={16} color="#4285F4" />
+              <Text style={styles.infoText}>
+                Disponible ahora hasta la fecha límite
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     );
   };
 
-  const keyExtractor = (item: ScheduledEvent) => item.id;
+  const keyExtractor = (item: ScheduledQuiz) => item.id;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={theme.colors.teacher.main} />
+          <Text style={styles.loadingText}>Cargando horarios...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.infoBanner}>
-        <Ionicons name="information-circle-outline" size={24} color="#4285F4" />
+        <Ionicons name="calendar-outline" size={24} color="#4285F4" />
         <Text style={styles.bannerText}>
-          Schedule classes and tests. Students will receive an automatic
-          notification.
+          Aquí puedes ver todos los quizzes que has programado con fechas específicas.
         </Text>
       </View>
 
       <FlatList
-        data={events}
+        data={quizzes}
         keyExtractor={keyExtractor}
-        renderItem={renderEvent}
+        renderItem={renderQuiz}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-clear-outline" size={64} color="#CBD5E0" />
-            <Text style={styles.emptyText}>No events scheduled yet.</Text>
+            <Text style={styles.emptyText}>No hay quizzes programados</Text>
+            <Text style={styles.emptySubtext}>
+              Los quizzes con fechas de disponibilidad aparecerán aquí
+            </Text>
           </View>
         }
       />
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Event</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#4A5568" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Event Type</Text>
-                <View style={styles.typeSelector}>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeOption,
-                      newEvent.type === 'Test' && styles.typeOptionActiveTest,
-                    ]}
-                    onPress={() => setNewEvent({ ...newEvent, type: 'Test' })}
-                  >
-                    <Text
-                      style={[
-                        styles.typeOptionText,
-                        newEvent.type === 'Test' &&
-                          styles.typeOptionTextActiveTest,
-                      ]}
-                    >
-                      Test
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeOption,
-                      newEvent.type === 'Class' && styles.typeOptionActiveClass,
-                    ]}
-                    onPress={() => setNewEvent({ ...newEvent, type: 'Class' })}
-                  >
-                    <Text
-                      style={[
-                        styles.typeOptionText,
-                        newEvent.type === 'Class' &&
-                          styles.typeOptionTextActiveClass,
-                      ]}
-                    >
-                      Class
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Event Title</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Algebra Midterm"
-                  value={newEvent.title}
-                  onChangeText={(text) =>
-                    setNewEvent({ ...newEvent, title: text })
-                  }
-                />
-              </View>
-
-              <View style={styles.rowInputs}>
-                <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-                  <Text style={styles.inputLabel}>Date</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="YYYY-MM-DD"
-                    value={newEvent.date}
-                    onChangeText={(text) =>
-                      setNewEvent({ ...newEvent, date: text })
-                    }
-                  />
-                </View>
-                <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
-                  <Text style={styles.inputLabel}>Time</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="10:00 AM"
-                    value={newEvent.time}
-                    onChangeText={(text) =>
-                      setNewEvent({ ...newEvent, time: text })
-                    }
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description (Optional)</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Add details about the event..."
-                  value={newEvent.description}
-                  onChangeText={(text) =>
-                    setNewEvent({ ...newEvent, description: text })
-                  }
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={styles.submitButton}
-                onPress={handleAddEvent}
-              >
-                <Text style={styles.submitButtonText}>
-                  Schedule & Notify Students
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -330,6 +213,19 @@ export default function TeacherScheduleScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAFBFD' },
+  
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+  },
+
   infoBanner: {
     flexDirection: 'row',
     backgroundColor: '#E8F0FE',
@@ -339,6 +235,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  
   bannerText: {
     flex: 1,
     marginLeft: 12,
@@ -347,7 +244,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 20,
   },
-  listContainer: { padding: 20, paddingBottom: 100 },
+  
+  listContainer: { 
+    padding: 20, 
+    paddingBottom: 100 
+  },
+  
   cardContainer: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -360,133 +262,95 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  cardAccent: { width: 6 },
-  cardContent: { flex: 1, padding: 16 },
+  
+  cardAccent: { 
+    width: 6 
+  },
+  
+  cardContent: { 
+    flex: 1, 
+    padding: 16 
+  },
+  
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  typeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  typeText: { fontSize: 12, fontWeight: '700' },
-  dateContainer: { flexDirection: 'row', alignItems: 'center' },
-  dateText: {
-    fontSize: 13,
-    color: '#718096',
-    fontWeight: '600',
-    marginLeft: 4,
+  
+  statusBadge: { 
+    paddingHorizontal: 10, 
+    paddingVertical: 4, 
+    borderRadius: 8 
   },
-  eventTitle: {
+  
+  statusText: { 
+    fontSize: 12, 
+    fontWeight: '700' 
+  },
+  
+  quizTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#2D3748',
-    marginBottom: 8,
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 12,
   },
-  timeText: {
-    fontSize: 14,
-    color: '#4A5568',
-    fontWeight: '500',
-    marginLeft: 6,
-  },
-  descriptionText: {
-    fontSize: 14,
-    color: '#718096',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  notificationBanner: {
+  
+  dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    marginBottom: 8,
+    gap: 6,
+  },
+  
+  dateLabel: {
+    fontSize: 13,
+    color: '#718096',
+    fontWeight: '600',
+  },
+  
+  dateValue: {
+    fontSize: 13,
+    color: '#2D3748',
+    fontWeight: '500',
+    flex: 1,
+  },
+  
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F0FE',
     padding: 10,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    marginTop: 8,
+    gap: 8,
   },
-  notificationText: {
+  
+  infoText: {
     fontSize: 13,
-    color: '#4285F4',
-    fontWeight: '600',
-    marginLeft: 8,
+    color: '#1A73E8',
+    fontWeight: '500',
+    flex: 1,
   },
+  
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 60,
   },
+  
   emptyText: {
     fontSize: 16,
     color: '#A0AEC0',
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 16,
   },
-
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '90%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: { fontSize: 22, fontWeight: '700', color: '#2D3748' },
-  inputGroup: { marginBottom: 20 },
-  inputLabel: {
+  
+  emptySubtext: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#4A5568',
-    marginBottom: 8,
+    color: '#CBD5E0',
+    marginTop: 8,
+    textAlign: 'center',
   },
-  input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: '#2D3748',
-  },
-  textArea: { height: 100, textAlignVertical: 'top' },
-  rowInputs: { flexDirection: 'row', justifyContent: 'space-between' },
-  typeSelector: { flexDirection: 'row', justifyContent: 'space-between' },
-  typeOption: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  typeOptionActiveTest: { backgroundColor: '#FCE8E6', borderColor: '#EA4335' },
-  typeOptionActiveClass: { backgroundColor: '#E6F4EA', borderColor: '#34A853' },
-  typeOptionText: { fontSize: 16, fontWeight: '600', color: '#718096' },
-  typeOptionTextActiveTest: { color: '#EA4335' },
-  typeOptionTextActiveClass: { color: '#34A853' },
-  submitButton: {
-    backgroundColor: '#4285F4',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

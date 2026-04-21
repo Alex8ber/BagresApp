@@ -214,11 +214,18 @@ export default function TeacherClassesScreen(_props: Props) {
     const stats = item.stats || { students: 0, materials: 0, quizzes: 0 };
 
     return (
-      <View style={styles.classCard}>
+      <TouchableOpacity
+        style={styles.classCard}
+        onPress={() => navigation.navigate('TeacherStudentsList', { classId: item.id })}
+        activeOpacity={0.8}
+      >
         {/* Delete Button */}
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={() => handleDeleteClass(item)}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleDeleteClass(item);
+          }}
           disabled={isDeleting}
         >
           {isDeleting ? (
@@ -306,7 +313,20 @@ export default function TeacherClassesScreen(_props: Props) {
             </Text>
           </View>
         </View>
-      </View>
+
+        {/* View Students Button */}
+        <TouchableOpacity 
+          style={styles.viewStudentsButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            navigation.navigate('TeacherStudentsList', { classId: item.id });
+          }}
+        >
+          <Ionicons name="people" size={16} color={theme.colors.teacher.main} />
+          <Text style={styles.viewStudentsText}>Ver Estudiantes</Text>
+          <Ionicons name="arrow-forward" size={16} color={theme.colors.teacher.main} />
+        </TouchableOpacity>
+      </TouchableOpacity>
     );
   };
 
@@ -724,6 +744,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.text.secondary,
     fontWeight: '500',
+  },
+  viewStudentsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F0FE',
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  viewStudentsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.teacher.main,
   },
   // Floating Action Button
   fab: {

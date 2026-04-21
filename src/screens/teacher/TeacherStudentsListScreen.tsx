@@ -2,12 +2,12 @@
  * TeacherStudentsListScreen
  * 
  * Screen for displaying and managing students in a specific class.
- * Allows teachers to view student list, search students, and download qualifications.
+ * Allows teachers to view student list and search students.
  * 
  * Requirements: 1.9, 5.3, 5.6, 5.9, 10.14, 11.1, 11.8, 11.9, 12.5, 12.8
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,116 +16,120 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackScreenProps } from '@/types/navigation';
+import { theme } from '@/styles';
+import { getClassStudents } from '@/services/supabase/classes';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface Student {
-  id: string;
-  name: string;
-  grade: string;
+  student_id: string;
+  enrolled_at: string;
+  students: {
+    id: string;
+    full_name: string;
+  };
 }
 
 type Props = RootStackScreenProps<'TeacherStudentsList'>;
 
 // ============================================================================
-// Mock Data (TODO: Replace with real data from service)
-// ============================================================================
-
-const initialStudents: Student[] = [
-  { id: '1', name: 'Alice Smith', grade: '10th' },
-  { id: '2', name: 'Bob Johnson', grade: '10th' },
-  { id: '3', name: 'Charlie Brown', grade: '10th' },
-  { id: '4', name: 'Diana Prince', grade: '10th' },
-  { id: '5', name: 'Evan Peters', grade: '10th' },
-  { id: '6', name: 'Fiona Gallagher', grade: '10th' },
-  { id: '7', name: 'George Michael', grade: '10th' },
-  { id: '8', name: 'Hannah Abbott', grade: '10th' },
-  { id: '9', name: 'Ian Somerhalder', grade: '10th' },
-  { id: '10', name: 'Julia Roberts', grade: '10th' },
-];
-
-// ============================================================================
 // Component
 // ============================================================================
 
-export default function TeacherStudentsListScreen({ route }: Props) {
-  // Validate route parameters
+export default function TeacherStudentsListScreen({ route, navigation }: Props) {
   const { classId } = route.params;
 
-  if (!classId) {
-    Alert.alert('Error', 'Class ID is required');
-  }
-
   const [searchQuery, setSearchQuery] = useState('');
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStudents();
+  }, [classId]);
+
+  const loadStudents = async () => {
+    try {
+      setLoading(true);
+      const studentsData = await getClassStudents(classId);
+      setStudents(studentsData);
+    } catch (error) {
+      console.error('Error loading students:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Sort students alphabetically and filter by search query
   const filteredStudents = useMemo(() => {
-    return initialStudents
+    return students
       .filter((student) =>
-        student.name.toLowerCase().includes(searchQuery.toLowerCase())
+        student.students?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
       )
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [searchQuery]);
+      .sort((a, b) => 
+        (a.students?.full_name || '').localeCompare(b.students?.full_name || '')
+      );
+  }, [students, searchQuery]);
 
-  const handleDownloadAll = () => {
-    // Mock download all functionality
-    console.log('Downloading all qualifications PDF...');
-    Alert.alert('Download', 'Downloading general class qualifications...');
-  };
-
-  const handleDownloadStudent = (studentName: string) => {
-    // Mock download specific student functionality
-    console.log(`Downloading qualifications for ${studentName}...`);
-    Alert.alert('Download', `Downloading qualifications for ${studentName}...`);
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', { 
+      day: 'numeric', 
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
   const renderStudentItem = ({ item }: { item: Student }) => (
     <View style={styles.studentItem}>
       <View style={styles.studentInfo}>
         <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
+          <Text style={styles.avatarText}>
+            {item.students?.full_name?.charAt(0) || '?'}
+          </Text>
         </View>
-        <View>
-          <Text style={styles.studentName}>{item.name}</Text>
-          <Text style={styles.studentGrade}>Grade: {item.grade}</Text>
+        <View style={styles.studentDetails}>
+          <Text style={styles.studentName}>{item.students?.full_name || 'Sin nombre'}</Text>
+          <Text style={styles.studentMeta}>
+            Inscrito: {formatDate(item.enrolled_at)}
+          </Text>
         </View>
       </View>
-      <TouchableOpacity
-        style={styles.downloadButton}
-        onPress={() => handleDownloadStudent(item.name)}
-      >
-        <Ionicons name="download-outline" size={24} color="#4A5568" />
-      </TouchableOpacity>
     </View>
   );
 
-  const keyExtractor = (item: Student) => item.id;
+  const keyExtractor = (item: Student) => item.student_id;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={theme.colors.teacher.main} />
+          <Text style={styles.loadingText}>Cargando estudiantes...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* General Actions */}
-        <View style={styles.generalActionsContainer}>
-          <TouchableOpacity
-            style={styles.mainActionButton}
-            onPress={handleDownloadAll}
-          >
-            <Ionicons
-              name="document-text"
-              size={20}
-              color="white"
-              style={styles.buttonIcon}
-            />
-            <Text style={styles.mainActionButtonText}>
-              Download Class Qualifications
-            </Text>
-          </TouchableOpacity>
+        {/* Header Info */}
+        <View style={styles.headerInfo}>
+          <View style={styles.statsCard}>
+            <Ionicons name="people" size={32} color={theme.colors.teacher.main} />
+            <View style={styles.statsContent}>
+              <Text style={styles.statsNumber}>{students.length}</Text>
+              <Text style={styles.statsLabel}>
+                {students.length === 1 ? 'Estudiante' : 'Estudiantes'}
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -138,7 +142,7 @@ export default function TeacherStudentsListScreen({ route }: Props) {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search students..."
+            placeholder="Buscar estudiantes..."
             placeholderTextColor="#A0AEC0"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -159,7 +163,13 @@ export default function TeacherStudentsListScreen({ route }: Props) {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={() => (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No students found</Text>
+              <Ionicons name="people-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyText}>
+                {searchQuery ? 'No se encontraron estudiantes' : 'No hay estudiantes en esta clase'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                Los estudiantes pueden unirse usando el código de clase
+              </Text>
             </View>
           )}
         />
@@ -175,35 +185,52 @@ export default function TeacherStudentsListScreen({ route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFBFD',
+    backgroundColor: '#F5F7FA',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+    fontWeight: '600',
   },
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 100,
+    paddingTop: 20,
   },
-  generalActionsContainer: {
+  headerInfo: {
     marginBottom: 20,
   },
-  mainActionButton: {
-    backgroundColor: '#4285F4',
+  statsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    shadowColor: '#4285F4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
+    gap: 16,
   },
-  buttonIcon: {
-    marginRight: 8,
+  statsContent: {
+    flex: 1,
   },
-  mainActionButtonText: {
-    color: 'white',
-    fontSize: 16,
+  statsNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: theme.colors.text.primary,
+    marginBottom: 4,
+  },
+  statsLabel: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
     fontWeight: '600',
   },
   searchContainer: {
@@ -248,6 +275,7 @@ const styles = StyleSheet.create({
   studentInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   avatarContainer: {
     width: 48,
@@ -261,7 +289,10 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#4285F4',
+    color: theme.colors.teacher.main,
+  },
+  studentDetails: {
+    flex: 1,
   },
   studentName: {
     fontSize: 16,
@@ -269,25 +300,24 @@ const styles = StyleSheet.create({
     color: '#2D3748',
     marginBottom: 4,
   },
-  studentGrade: {
-    fontSize: 14,
+  studentMeta: {
+    fontSize: 13,
     color: '#718096',
-  },
-  downloadButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F7FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 60,
+    gap: 12,
   },
   emptyText: {
     fontSize: 16,
-    color: '#A0AEC0',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
   },
 });

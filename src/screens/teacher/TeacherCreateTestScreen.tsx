@@ -73,6 +73,13 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
   const [optionC, setOptionC] = useState('');
   const [optionD, setOptionD] = useState('');
   const [correctOption, setCorrectOption] = useState<OptionKey>('A');
+  const [scheduleQuiz, setScheduleQuiz] = useState(false);
+  
+  // Separate date and time fields for better mobile UX
+  const [startDate, setStartDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('');
 
   const handleAddQuestion = () => {
     if (!currentQuestionText || !optionA || !optionB || !optionC || !optionD) {
@@ -137,14 +144,102 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
       return;
     }
 
-    setIsSaving(true);
+    // Validate schedule dates if scheduling is enabled
+    if (scheduleQuiz) {
+      // Validate date format (YYYY-MM-DD)
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      // Validate time format (HH:MM)
+      const timeRegex = /^\d{2}:\d{2}$/;
+
+      if (startDate && !dateRegex.test(startDate)) {
+        Alert.alert('Formato inválido', 'La fecha de inicio debe tener el formato YYYY-MM-DD (ej: 2024-12-25)');
+        return;
+      }
+
+      if (startTime && !timeRegex.test(startTime)) {
+        Alert.alert('Formato inválido', 'La hora de inicio debe tener el formato HH:MM (ej: 15:00)');
+        return;
+      }
+
+      if (endDate && !dateRegex.test(endDate)) {
+        Alert.alert('Formato inválido', 'La fecha de fin debe tener el formato YYYY-MM-DD (ej: 2024-12-30)');
+        return;
+      }
+
+      if (endTime && !timeRegex.test(endTime)) {
+        Alert.alert('Formato inválido', 'La hora de fin debe tener el formato HH:MM (ej: 23:59)');
+        return;
+      }
+
+      // Validate that both date and time are provided together
+      if ((startDate && !startTime) || (!startDate && startTime)) {
+        Alert.alert('Datos incompletos', 'Debes proporcionar tanto la fecha como la hora de inicio, o dejar ambos vacíos.');
+        return;
+      }
+
+      if ((endDate && !endTime) || (!endDate && endTime)) {
+        Alert.alert('Datos incompletos', 'Debes proporcionar tanto la fecha como la hora de fin, o dejar ambos vacíos.');
+        return;
+      }
+
+      // Validate date logic
+      if (startDate && startTime && endDate && endTime) {
+        const start = new Date(`${startDate}T${startTime}:00`);
+        const end = new Date(`${endDate}T${endTime}:00`);
+
+        if (isNaN(start.getTime())) {
+          Alert.alert('Fecha inválida', 'La fecha de inicio no es válida.');
+          return;
+        }
+
+        if (isNaN(end.getTime())) {
+          Alert.alert('Fecha inválida', 'La fecha de fin no es válida.');
+          return;
+        }
+
+        if (end <= start) {
+          Alert.alert('Fechas inválidas', 'La fecha de fin debe ser posterior a la fecha de inicio.');
+          return;
+        }
+      }
+
+      // Optional: Warn if start date is in the past
+      if (startDate && startTime) {
+        const start = new Date(`${startDate}T${startTime}:00`);
+        const now = new Date();
+        
+        if (start < now) {
+          Alert.alert(
+            'Fecha en el pasado',
+            'La fecha de inicio está en el pasado. El quiz estará disponible inmediatamente. ¿Deseas continuar?',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Continuar', onPress: () => saveQuiz() },
+            ]
+          );
+          return;
+        }
+      }
+    }
+
+    saveQuiz();
+  };
+
+  const saveQuiz = async () => {
 
     try {
-      console.log('[TeacherCreateTestScreen] Guardando quiz...');
-      console.log('[TeacherCreateTestScreen] class_id:', selectedClassId);
-      console.log('[TeacherCreateTestScreen] teacher_id:', user.id);
-      console.log('[TeacherCreateTestScreen] title:', quizTitle);
-      console.log('[TeacherCreateTestScreen] questions:', questions.length);
+      // Build ISO date strings from separate date/time fields
+      let availableFrom: string | null = null;
+      let availableUntil: string | null = null;
+
+      if (scheduleQuiz) {
+        if (startDate && startTime) {
+          availableFrom = `${startDate}T${startTime}:00Z`;
+        }
+        if (endDate && endTime) {
+          availableUntil = `${endDate}T${endTime}:00Z`;
+        }
+      }
 
       // 1. Create the quiz
       const quiz = await createQuiz({
@@ -154,9 +249,9 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
         time_limit_minutes: 60, // Default 60 minutes
         passing_score: 70, // Default 70%
         is_published: true,
+        available_from: availableFrom,
+        available_until: availableUntil,
       });
-
-      console.log('[TeacherCreateTestScreen] Quiz creado:', quiz.id);
 
       // 2. Create all questions and their options
       for (let i = 0; i < questions.length; i++) {
@@ -171,8 +266,6 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
           order_index: i,
         });
 
-        console.log('[TeacherCreateTestScreen] Pregunta creada:', question.id);
-
         // Create options
         const optionKeys: OptionKey[] = ['A', 'B', 'C', 'D'];
         for (let j = 0; j < optionKeys.length; j++) {
@@ -185,8 +278,6 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
           });
         }
       }
-
-      console.log('[TeacherCreateTestScreen] Quiz guardado exitosamente');
 
       Alert.alert('¡Éxito!', 'Quiz guardado correctamente.', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -250,54 +341,120 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
         </Text>
       ) : (
         <>
-          <Text style={styles.debugText}>
-            Clases disponibles: {classes.length}
-          </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.classList}
           >
-            {classes.map((cls: any) => {
-              console.log('🏫 [TeacherCreateTestScreen] Class option:', {
-                id: cls.id,
-                name: cls.name,
-                isSelected: selectedClassId === cls.id
-              });
-              return (
-                <TouchableOpacity
-                  key={cls.id}
+            {classes.map((cls: any) => (
+              <TouchableOpacity
+                key={cls.id}
+                style={[
+                  styles.classPill,
+                  selectedClassId === cls.id && styles.classPillActive,
+                ]}
+                onPress={() => setSelectedClassId(cls.id)}
+              >
+                <Text
                   style={[
-                    styles.classPill,
-                    selectedClassId === cls.id && styles.classPillActive,
+                    styles.classPillText,
+                    selectedClassId === cls.id && styles.classPillTextActive,
                   ]}
-                  onPress={() => {
-                    console.log('🏫 [TeacherCreateTestScreen] Selected class:', cls.id, cls.name);
-                    setSelectedClassId(cls.id);
-                  }}
                 >
-                  <Text
-                    style={[
-                      styles.classPillText,
-                      selectedClassId === cls.id && styles.classPillTextActive,
-                    ]}
-                  >
-                    {cls.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                  {cls.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
-          {selectedClassId && (
-            <Text style={styles.debugText}>
-              Clase seleccionada ID: {selectedClassId}
-            </Text>
-          )}
         </>
       )}
 
+      <Text style={styles.sectionTitle}>3. Programar Quiz (Opcional)</Text>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>3. Agregar Nueva Pregunta</Text>
+        <TouchableOpacity
+          style={styles.scheduleToggle}
+          onPress={() => setScheduleQuiz(!scheduleQuiz)}
+        >
+          <View style={styles.scheduleToggleLeft}>
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color={scheduleQuiz ? '#4285F4' : '#718096'}
+            />
+            <Text style={[styles.scheduleToggleText, scheduleQuiz && styles.scheduleToggleTextActive]}>
+              Programar disponibilidad del quiz
+            </Text>
+          </View>
+          <View style={[styles.switch, scheduleQuiz && styles.switchActive]}>
+            <View style={[styles.switchThumb, scheduleQuiz && styles.switchThumbActive]} />
+          </View>
+        </TouchableOpacity>
+
+        {scheduleQuiz && (
+          <View style={styles.scheduleFields}>
+            <Text style={styles.scheduleSubtitle}>
+              Fecha y hora de inicio (opcional)
+            </Text>
+            <View style={styles.dateTimeRow}>
+              <View style={styles.dateTimeField}>
+                <Text style={styles.dateLabel}>Fecha</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  placeholder="2024-12-25"
+                  placeholderTextColor="#A0AEC0"
+                  value={startDate}
+                  onChangeText={setStartDate}
+                />
+              </View>
+              <View style={styles.dateTimeField}>
+                <Text style={styles.dateLabel}>Hora</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  placeholder="15:00"
+                  placeholderTextColor="#A0AEC0"
+                  value={startTime}
+                  onChangeText={setStartTime}
+                />
+              </View>
+            </View>
+            <Text style={styles.dateHelper}>
+              Deja vacío para que esté disponible inmediatamente
+            </Text>
+
+            <Text style={[styles.scheduleSubtitle, { marginTop: 20 }]}>
+              Fecha y hora de fin (opcional)
+            </Text>
+            <View style={styles.dateTimeRow}>
+              <View style={styles.dateTimeField}>
+                <Text style={styles.dateLabel}>Fecha</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  placeholder="2024-12-30"
+                  placeholderTextColor="#A0AEC0"
+                  value={endDate}
+                  onChangeText={setEndDate}
+                />
+              </View>
+              <View style={styles.dateTimeField}>
+                <Text style={styles.dateLabel}>Hora</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  placeholder="23:59"
+                  placeholderTextColor="#A0AEC0"
+                  value={endTime}
+                  onChangeText={setEndTime}
+                />
+              </View>
+            </View>
+            <Text style={styles.dateHelper}>
+              Deja vacío para que no tenga fecha límite
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>4. Agregar Nueva Pregunta</Text>
 
         <TextInput
           style={[styles.input, styles.textArea]}
@@ -522,14 +679,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
-  debugText: {
-    fontSize: 11,
-    color: '#666',
-    marginTop: 8,
-    marginBottom: 8,
-    fontFamily: 'monospace',
-  },
-
   emptyClassText: {
     color: '#E53E3E',
     fontSize: 14,
@@ -557,6 +706,110 @@ const styles = StyleSheet.create({
   classPillTextActive: {
     color: '#0D652D',
     fontWeight: '800',
+  },
+
+  scheduleToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+
+  scheduleToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+
+  scheduleToggleText: {
+    fontSize: 15,
+    color: '#718096',
+    fontWeight: '600',
+  },
+
+  scheduleToggleTextActive: {
+    color: '#2D3748',
+  },
+
+  switch: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E2E8F0',
+    padding: 2,
+    justifyContent: 'center',
+  },
+
+  switchActive: {
+    backgroundColor: '#4285F4',
+  },
+
+  switchThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+
+  switchThumbActive: {
+    transform: [{ translateX: 22 }],
+  },
+
+  scheduleFields: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+
+  scheduleSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2D3748',
+    marginBottom: 12,
+  },
+
+  dateTimeRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  dateTimeField: {
+    flex: 1,
+  },
+
+  dateField: {
+    marginBottom: 20,
+  },
+
+  dateLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#718096',
+    marginBottom: 6,
+  },
+
+  dateInput: {
+    backgroundColor: '#F7FAFC',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    color: '#2D3748',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+
+  dateHelper: {
+    fontSize: 12,
+    color: '#718096',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 
   input: {

@@ -23,6 +23,7 @@ import type { RootStackScreenProps } from '@/types/navigation';
 import { getQuizWithQuestions } from '@/services/supabase/quizzes';
 import type { QuizWithQuestions } from '@/services/supabase/quizzes';
 import { getQuizSubmission, submitQuiz as saveQuizSubmission, calculateSubmissionScore } from '@/services/supabase/students';
+import { supabase } from '@/services/supabase/client';
 
 type Props = RootStackScreenProps<'StudentTakeQuiz'>;
 
@@ -202,6 +203,31 @@ export default function StudentTakeQuizScreen({ navigation, route }: Props) {
           quiz.id,
           answers
         );
+
+        // Notify teacher about quiz completion
+        try {
+          const { notifyTeacherQuizCompleted } = await import('@/services/supabase/notifications');
+          
+          // Get teacher ID from quiz
+          const { data: quizData } = await supabase
+            .from('quizzes')
+            .select('teacher_id')
+            .eq('id', quiz.id)
+            .single();
+
+          if (quizData?.teacher_id) {
+            await notifyTeacherQuizCompleted(
+              quizData.teacher_id,
+              profile.full_name || 'Un estudiante',
+              quiz.title,
+              score,
+              quiz.id
+            );
+          }
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+          // Don't block submission if notification fails
+        }
       } catch (dbError) {
         console.error('Error saving submission:', dbError);
         // Continue to results even if save fails
