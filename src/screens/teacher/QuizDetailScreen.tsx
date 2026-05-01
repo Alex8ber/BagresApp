@@ -276,7 +276,8 @@ export default function QuizDetailScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <SafeAreaView style={styles.safeAreaView} edges={['top', 'bottom']}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header Card */}
         <View style={[styles.headerCard, { borderLeftColor: theme.colors.teacher.main }]}>
           <View style={styles.iconContainer}>
@@ -443,7 +444,7 @@ export default function QuizDetailScreen({ navigation, route }: Props) {
             style={[styles.actionButton, { backgroundColor: theme.colors.teacher.main }]}
           >
             <Ionicons name="settings-outline" size={20} color="#fff" />
-            <Text style={styles.buttonText}>  Editar Configuración</Text>
+            <Text style={styles.buttonText}>  Configuración</Text>
           </Button>
 
           <Button
@@ -454,7 +455,7 @@ export default function QuizDetailScreen({ navigation, route }: Props) {
             style={styles.actionButton}
           >
             <Ionicons name="add-circle-outline" size={20} color={theme.colors.teacher.main} />
-            <Text style={[styles.buttonText, { color: theme.colors.teacher.main }]}>  Agregar Preguntas</Text>
+            <Text style={[styles.buttonText, { color: theme.colors.teacher.main }]}>  Preguntas</Text>
           </Button>
 
           <Button
@@ -465,12 +466,13 @@ export default function QuizDetailScreen({ navigation, route }: Props) {
             style={[styles.actionButton, styles.deleteButton]}
           >
             <Ionicons name="trash-outline" size={20} color="#EF5350" />
-            <Text style={[styles.buttonText, { color: '#EF5350' }]}>  Eliminar Cuestionario</Text>
+            <Text style={[styles.buttonText, { color: '#EF5350' }]}>  Eliminar</Text>
           </Button>
         </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+      </SafeAreaView>
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -632,6 +634,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F7FA',
+  },
+  safeAreaView: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,

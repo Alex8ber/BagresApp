@@ -125,7 +125,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.colors.teacher.main} />
           <Text style={styles.loadingText}>Cargando perfil...</Text>
@@ -136,7 +136,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
 
   if (!user || !teacherProfile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>No hay datos de perfil disponibles</Text>
         </View>
@@ -145,7 +145,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -217,7 +217,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
             variant="primary"
             style={styles.saveButton}
           >
-            Editar Perfil
+            Editar
           </Button>
 
           <TouchableOpacity

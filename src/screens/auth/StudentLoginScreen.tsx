@@ -101,7 +101,7 @@ export default function StudentLoginScreen({ navigation }: Props) {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -166,7 +166,7 @@ export default function StudentLoginScreen({ navigation }: Props) {
                 loading={loading}
                 style={styles.submitButton}
               >
-                Unirme a la clase
+                Unirme
               </Button>
 
               {/* Back Button */}

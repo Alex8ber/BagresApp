@@ -1,15 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database, TypedSupabaseClient } from '@/types/database';
+import Constants from 'expo-constants';
 
 /**
  * Supabase Configuration
  * 
- * TODO: Replace these with your actual Supabase credentials
- * You can find these in your Supabase project settings:
- * https://app.supabase.com/project/_/settings/api
+ * Uses environment variables from .env file (development)
+ * and Expo Constants (production/standalone apps).
+ * 
+ * In standalone apps (APK), environment variables are embedded
+ * in the app.config.js extra field and accessed via Constants.expoConfig.extra.
  */
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key';
+const SUPABASE_URL = 
+  Constants.expoConfig?.extra?.supabaseUrl || 
+  process.env.EXPO_PUBLIC_SUPABASE_URL || 
+  'https://your-project.supabase.co';
+
+const SUPABASE_ANON_KEY = 
+  Constants.expoConfig?.extra?.supabaseAnonKey || 
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+  'your-anon-key';
 
 // Check if credentials are properly configured
 const isConfigured = SUPABASE_URL !== 'https://your-project.supabase.co' && 
@@ -17,7 +27,7 @@ const isConfigured = SUPABASE_URL !== 'https://your-project.supabase.co' &&
                      SUPABASE_ANON_KEY.length > 50; // Supabase keys are typically 100+ characters
 
 if (!isConfigured) {
-  console.warn('⚠️ Supabase credentials are not properly configured. Please check your .env file.');
+  console.warn('⚠️ Supabase credentials are not properly configured.');
   console.warn('Expected EXPO_PUBLIC_SUPABASE_ANON_KEY to be a long JWT token (100+ characters)');
   console.warn('Current key length:', SUPABASE_ANON_KEY.length);
 }
