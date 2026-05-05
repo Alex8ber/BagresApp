@@ -16,7 +16,6 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   RoleSelectionScreen,
   StudentLoginScreen,
-  StudentRegisterScreen,
   TeacherLoginScreen,
   TeacherRegisterScreen,
   TeacherVerificationScreen,
@@ -96,17 +95,6 @@ export function RootNavigator() {
             component={StudentLoginScreen}
             options={{
               title: 'Student Login',
-              headerStyle: {
-                backgroundColor: colors.student.main,
-              },
-            }}
-          />
-          
-          <Stack.Screen
-            name="StudentRegister"
-            component={StudentRegisterScreen}
-            options={{
-              title: 'Student Registration',
               headerStyle: {
                 backgroundColor: colors.student.main,
               },

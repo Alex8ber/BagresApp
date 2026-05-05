@@ -71,23 +71,13 @@ export default function RoleSelectionScreen({ navigation }: Props) {
             </View>
             <Text style={styles.roleTitle}>Student</Text>
             
-            <View style={styles.buttonsContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.loginButton, styles.studentLoginButton]}
-                onPress={() => navigation.navigate('StudentLogin')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.loginButtonText}>Login</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.button, styles.registerButton, styles.studentRegisterButton]}
-                onPress={() => navigation.navigate('StudentRegister')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.registerButtonText, styles.studentRegisterText]}>Register</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[styles.button, styles.loginButton, styles.studentLoginButton, styles.fullWidthButton]}
+              onPress={() => navigation.navigate('StudentLogin')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.loginButtonText}>Login</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -259,5 +249,9 @@ const styles = StyleSheet.create({
 
   studentRegisterText: {
     color: theme.colors.student.main,
+  },
+
+  fullWidthButton: {
+    width: '100%',
   },
 });
