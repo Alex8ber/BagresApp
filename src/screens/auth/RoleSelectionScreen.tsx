@@ -8,7 +8,8 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '@/styles/theme';
 import type { RootStackScreenProps } from '@/types/navigation';
 
@@ -71,13 +72,15 @@ export default function RoleSelectionScreen({ navigation }: Props) {
             </View>
             <Text style={styles.roleTitle}>Student</Text>
             
-            <TouchableOpacity
-              style={[styles.button, styles.loginButton, styles.studentLoginButton, styles.fullWidthButton]}
-              onPress={() => navigation.navigate('StudentLogin')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.loginButtonText}>Login</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonsContainer}>
+              <TouchableOpacity
+                style={[styles.button, styles.loginButton, styles.studentLoginButton]}
+                onPress={() => navigation.navigate('StudentLogin')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.loginButtonText}>Login</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -209,7 +212,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
 
+  registerButton: {
+    backgroundColor: '#fff',
+  },
+
   teacherLoginButton: {
+    backgroundColor: theme.colors.teacher.main,
+  },
+
+  teacherRegisterButton: {
     backgroundColor: theme.colors.teacher.main,
   },
 
@@ -218,40 +229,22 @@ const styles = StyleSheet.create({
   },
 
   loginButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
     color: '#fff',
-  },
-
-  registerButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-
-  teacherRegisterButton: {
-    borderColor: theme.colors.teacher.main,
-  },
-
-  studentRegisterButton: {
-    borderColor: theme.colors.student.main,
+    fontWeight: '600',
+    fontSize: 16,
   },
 
   registerButtonText: {
+    color: '#fff',
+    fontWeight: '600',
     fontSize: 16,
-    fontWeight: '700',
   },
 
   teacherRegisterText: {
-    color: theme.colors.teacher.main,
+    color: '#fff',
   },
 
   studentRegisterText: {
-    color: theme.colors.student.main,
-  },
-
-  fullWidthButton: {
-    width: '100%',
+    color: '#fff',
   },
 });

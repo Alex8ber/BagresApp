@@ -149,16 +149,18 @@ export default function TeacherLoginScreen({ navigation }: Props) {
                 </View>
               )}
 
-              <Button
-                variant="primary"
-                size="large"
-                fullWidth
+              <TouchableOpacity
+                style={[styles.button, styles.loginButton, styles.teacherLoginButton]}
                 onPress={handleSubmit}
-                loading={loading}
-                style={styles.submitButton}
+                activeOpacity={0.8}
+                disabled={loading}
               >
-                Iniciar Sesión
-              </Button>
+                {loading ? (
+                  <Text style={styles.loginButtonText}>Cargando...</Text>
+                ) : (
+                  <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+                )}
+              </TouchableOpacity>
 
               {/* Forgot Password */}
               <TouchableOpacity
@@ -284,6 +286,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+
+  button: {
+    flex: 1,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
+  loginButton: {
+    backgroundColor: '#fff',
+  },
+
+  teacherLoginButton: {
+    backgroundColor: theme.colors.teacher.main,
+  },
+
+  loginButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 
   forgotPasswordButton: {
