@@ -17,6 +17,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/shared/Button';
 import { QuestionCard } from '@/components/shared/QuestionCard';
