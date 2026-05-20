@@ -7,23 +7,26 @@
  * Requirements: 1.9, 2.1, 5.2, 5.9, 10.14, 11.1, 11.9
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   SafeAreaView, 
-  Alert, 
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
+  Image,
+  Platform,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { TeacherTabScreenProps } from '@/types/navigation';
 import { useAuth } from '@/hooks';
 import { Button } from '@/components/shared';
 import { theme } from '@/styles';
-import type { Teacher } from '@/types/database';
+import type { Teacher } from '@/types/models';
+import { uploadAvatar, updateTeacherProfile } from '@/services';
 
 type Props = TeacherTabScreenProps<'Profile'>;
 
@@ -33,51 +36,96 @@ type Props = TeacherTabScreenProps<'Profile'>;
  * Displays teacher profile information with edit and sign out functionality.
  */
 export default function TeacherProfileScreen({ navigation }: Props) {
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, refreshProfile, signOut, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const teacherProfile = profile as Teacher | null;
+
+  // Load avatar from profile
+  useEffect(() => {
+    if (teacherProfile?.avatarUrl) {
+      setProfileImage(teacherProfile.avatarUrl);
+    }
+  }, [teacherProfile]);
 
   const handleGoBack = () => {
     navigation.navigate('Main');
   };
 
+  const handleImagePick = async () => {
+    if (Platform.OS === 'web') {
+      // Create a file input element for web
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e: any) => {
+        const file = e.target.files[0];
+        if (file && user) {
+          setUploadingImage(true);
+          try {
+            // Create a URL for preview
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+              const base64Image = event.target?.result as string;
+              setProfileImage(base64Image);
+
+              // Upload to Supabase Storage
+              const avatarUrl = await uploadAvatar(user.id, base64Image, file.type);
+
+              // Update teacher profile with avatar URL
+              await updateTeacherProfile(user.id, { avatar_url: avatarUrl });
+
+              // Refresh profile to get updated data
+              await refreshProfile();
+            };
+            reader.readAsDataURL(file);
+          } catch (error) {
+            console.error('Error uploading avatar:', error);
+            setProfileImage(teacherProfile?.avatarUrl || null);
+          } finally {
+            setUploadingImage(false);
+          }
+        }
+      };
+      input.click();
+    } else {
+      // For mobile, you would use expo-image-picker here
+      // import * as ImagePicker from 'expo-image-picker';
+      // const result = await ImagePicker.launchImageLibraryAsync({...});
+    }
+  };
+
   const handleSignOut = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro que deseas cerrar sesión?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setSigningOut(true);
-              await signOut();
-            } catch (error) {
-              Alert.alert('Error', 'No se pudo cerrar sesión. Intenta de nuevo.');
-              setSigningOut(false);
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+    setShowSignOutModal(true);
+  };
+
+  const confirmSignOut = async () => {
+    try {
+      setSigningOut(true);
+      setShowSignOutModal(false);
+      await signOut();
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
+  const cancelSignOut = () => {
+    setShowSignOutModal(false);
   };
 
   const handleEdit = () => {
-    setIsEditing(!isEditing);
-    // TODO: Implement edit functionality
+    navigation.navigate('TeacherEditProfile');
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={theme.colors.teacher.main} />
           <Text style={styles.loadingText}>Cargando perfil...</Text>
@@ -88,7 +136,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
 
   if (!user || !teacherProfile) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>No hay datos de perfil disponibles</Text>
         </View>
@@ -97,7 +145,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -116,10 +164,23 @@ export default function TeacherProfileScreen({ navigation }: Props) {
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarEmoji}>👨‍🏫</Text>
+              {profileImage ? (
+                <Image source={{ uri: profileImage }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarEmoji}>👨‍🏫</Text>
+              )}
+              {uploadingImage && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator size="large" color="#fff" />
+                </View>
+              )}
             </View>
-            <TouchableOpacity style={styles.editAvatarButton} onPress={handleEdit}>
-              <Ionicons name="create" size={20} color="#fff" />
+            <TouchableOpacity 
+              style={styles.editAvatarButton} 
+              onPress={handleImagePick}
+              disabled={uploadingImage}
+            >
+              <Ionicons name="camera" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
           <Text style={styles.profileLabel}>PERFIL DE DOCENTE</Text>
@@ -130,7 +191,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
           <View style={styles.fieldContainer}>
             <Text style={styles.fieldLabel}>Nombre Completo</Text>
             <View style={styles.fieldInput}>
-              <Text style={styles.fieldValue}>{teacherProfile.full_name}</Text>
+              <Text style={styles.fieldValue}>{teacherProfile.fullName}</Text>
             </View>
           </View>
 
@@ -156,7 +217,7 @@ export default function TeacherProfileScreen({ navigation }: Props) {
             variant="primary"
             style={styles.saveButton}
           >
-            Editar Perfil
+            Editar
           </Button>
 
           <TouchableOpacity
@@ -171,6 +232,43 @@ export default function TeacherProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Sign Out Confirmation Modal */}
+      <Modal
+        visible={showSignOutModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={cancelSignOut}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="log-out-outline" size={48} color="#E74C3C" />
+            </View>
+            
+            <Text style={styles.modalTitle}>Cerrar Sesión</Text>
+            <Text style={styles.modalMessage}>
+              ¿Estás seguro que deseas cerrar sesión?
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={cancelSignOut}
+              >
+                <Text style={styles.modalCancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={confirmSignOut}
+              >
+                <Text style={styles.modalConfirmButtonText}>Cerrar Sesión</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -263,6 +361,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    overflow: 'hidden',
+  },
+
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 60,
+  },
+
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   avatarEmoji: {
@@ -369,5 +486,90 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#E74C3C',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFEBEE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+
+  modalMessage: {
+    fontSize: 16,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  modalCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+  },
+
+  modalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#E74C3C',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  modalConfirmButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

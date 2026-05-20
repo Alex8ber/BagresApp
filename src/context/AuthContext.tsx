@@ -50,7 +50,7 @@ export interface AuthContextState {
   profile: Teacher | Student | null;
   /** User role */
   role: UserRole;
-  /** Whether auth state is loading */
+  /** Whether auth state is loading (initial load or during operations) */
   loading: boolean;
   /** Authentication error message */
   error: string | null;
@@ -60,8 +60,8 @@ export interface AuthContextState {
  * Authentication context actions
  */
 export interface AuthContextActions {
-  /** Sign in with email and password */
-  signIn: (email: string, password: string, role: UserRole) => Promise<void>;
+  /** Sign in with email and password (teachers) or join class with code (students) */
+  signIn: (emailOrName: string, passwordOrCode: string, role: UserRole) => Promise<void>;
   /** Sign up a new user */
   signUp: (email: string, password: string, role: UserRole, profileData: any) => Promise<void>;
   /** Sign out the current user */
@@ -98,6 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [profile, setProfile] = useState<Teacher | Student | null>(null);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [initializing, setInitializing] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -156,9 +157,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } catch (err) {
         console.error('Failed to initialize auth:', err);
-        // Don't set error for initialization failures
+        // Clear any partial state on error
+        setUser(null);
+        setProfile(null);
+        setRole(null);
+        // Don't set error for initialization failures - just log it
       } finally {
         setLoading(false);
+        setInitializing(false);
       }
     };
 
@@ -166,74 +172,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /**
-   * Sign in with email and password
+   * Sign in with email and password (teachers) or join class with code (students)
    */
-  const signIn = useCallback(async (email: string, password: string, userRole: UserRole) => {
+  const signIn = useCallback(async (emailOrName: string, passwordOrCode: string, userRole: UserRole) => {
     try {
-      setLoading(true);
+      setLoading(true); // Internal loading state for button
       setError(null);
 
-      // Check if we're in development mode without backend
-      const isDevelopmentMode = !process.env.EXPO_PUBLIC_SUPABASE_URL || 
-                                process.env.EXPO_PUBLIC_SUPABASE_URL === 'your-project-url.supabase.co';
+      // Real authentication - different flow for students vs teachers
+      if (userRole === 'student') {
+        // Students join a class with name + class code (NO auth account needed)
+        const { student } = await authService.joinClassWithCode(
+          emailOrName, // This is the student's full name
+          passwordOrCode // This is the class code
+        );
 
-      if (isDevelopmentMode) {
-        // Mock login for development
-        console.log('🔧 Development mode: Using mock authentication');
-        
-        const mockUser: User = {
-          id: 'mock-user-id-' + userRole,
-          email: email,
-          app_metadata: {},
-          user_metadata: {},
-          aud: 'authenticated',
-          created_at: new Date().toISOString(),
-        } as User;
+        // Students don't have a User object (no auth account)
+        // We store their profile directly and use a mock user object for navigation
+        setUser(null); // Students don't have auth accounts
+        setProfile(transformStudent(student));
+        setRole('student');
+      } else {
+        // Teachers use email/password authentication
+        const authenticatedUser = await authService.signIn(emailOrName, passwordOrCode);
+        setUser(authenticatedUser);
 
-        setUser(mockUser);
-
-        // Create mock profile
-        if (userRole === 'teacher') {
-          const mockTeacher: Teacher = {
-            id: mockUser.id,
-            email: email,
-            full_name: 'Mock Teacher',
-            school: 'Development School',
-            verified: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          setProfile(mockTeacher);
-          setRole('teacher');
-        } else if (userRole === 'student') {
-          const mockStudent: Student = {
-            id: mockUser.id,
-            email: email,
-            full_name: 'Mock Student',
-            grade: '10th Grade',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          setProfile(mockStudent);
-          setRole('student');
-        }
-
-        setLoading(false);
-        return;
+        // Load profile based on role
+        await loadProfile(authenticatedUser.id, userRole);
       }
-
-      // Real authentication
-      const authenticatedUser = await authService.signIn(email, password);
-      setUser(authenticatedUser);
-
-      // Load profile based on role
-      await loadProfile(authenticatedUser.id, userRole);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in';
+      const errorMessage = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(errorMessage);
+      
+      // Don't modify user/profile/role state on error - keep them as null
+      // This prevents unwanted navigation
+      
+      // Re-throw the error so the calling component can handle it
       throw err;
     } finally {
-      setLoading(false);
+      setLoading(false); // Only affects button loading, not navigator
     }
   }, [loadProfile]);
 
@@ -269,9 +246,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else if (userRole === 'student') {
         const studentData: StudentInsert = {
           id: newUser.id,
-          email: newUser.email!,
+          class_id: profileData.classId, // Will be set when joining a class
           full_name: profileData.fullName,
-          grade: profileData.grade,
         };
         const studentProfile = await authService.createStudentProfile(newUser.id, studentData);
         setProfile(transformStudent(studentProfile));
@@ -294,19 +270,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true);
       setError(null);
 
-      await authService.signOut();
+      // Clear state first to trigger navigation immediately
+      const currentRole = role;
       
       setUser(null);
       setProfile(null);
       setRole(null);
+      
+      // Only call Supabase signOut for teachers (students don't have auth sessions)
+      if (currentRole === 'teacher') {
+        await authService.signOut();
+      }
     } catch (err) {
+      console.error('Sign out error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign out';
       setError(errorMessage);
-      throw err;
+      // Even if signOut fails, keep state cleared
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [role]);
 
   /**
    * Refresh the user profile
@@ -334,7 +317,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     profile,
     role,
-    loading,
+    loading: initializing || loading, // Combine both loading states
     error,
     signIn,
     signUp,

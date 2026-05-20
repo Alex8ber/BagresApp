@@ -23,7 +23,18 @@ export {
   createStudentProfile,
   getTeacherProfile,
   getStudentProfile,
+  updateTeacherProfile,
 } from './supabase/auth';
+
+// Storage services
+export {
+  uploadAvatar,
+  deleteAvatar,
+  uploadClassImage,
+  deleteClassImage,
+  uploadMaterialFile,
+  deleteMaterialFile,
+} from './supabase/storage';
 
 // Classes services
 export {
@@ -40,4 +51,50 @@ export {
   getStudents,
   getStudentsByClass,
   updateStudent,
+  joinClassWithCode,
+  getStudentById,
 } from './supabase/students';
+
+// Materials services
+export {
+  getClassMaterials,
+  getTeacherMaterials,
+  createMaterial,
+  updateMaterial,
+  deleteMaterial,
+} from './supabase/materials';
+
+// Quizzes services
+export {
+  getClassQuizzes,
+  getTeacherQuizzes,
+  createQuiz,
+  updateQuiz,
+  deleteQuiz,
+  getQuizQuestions,
+  createQuestion,
+  getQuestionOptions,
+  createOption,
+  updateOption,
+  deleteOption,
+  getQuizWithQuestions,
+  updateQuestionOrder,
+  deleteQuestion,
+  updateQuestion,
+} from './supabase/quizzes';
+
+// Auto-submit services
+export {
+  submitQuiz,
+  isQuizAvailable,
+} from './autoSubmit';
+
+// Export types
+export type {
+  QuestionWithOptions,
+  QuizWithQuestions,
+} from './supabase/quizzes';
+
+export type {
+  QuizSubmission,
+} from './autoSubmit';

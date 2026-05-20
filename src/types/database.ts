@@ -11,6 +11,7 @@ export interface Teacher {
   full_name: string;
   school: string;
   verified: boolean;
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,9 +21,11 @@ export interface Teacher {
  * 
  * Type for inserting a new teacher record.
  * ID is optional since it can be auto-generated or manually set.
+ * avatar_url is optional since it can be added later.
  */
-export type TeacherInsert = Omit<Teacher, 'created_at' | 'updated_at'> & {
+export type TeacherInsert = Omit<Teacher, 'created_at' | 'updated_at' | 'avatar_url'> & {
   id?: string;
+  avatar_url?: string | null;
 };
 
 /**
@@ -37,12 +40,12 @@ export type TeacherUpdate = Partial<Omit<Teacher, 'id' | 'created_at' | 'updated
  * Student Entity
  * 
  * Represents a student user in the system.
+ * Students don't have auth accounts - they join classes with name + class code.
  */
 export interface Student {
   id: string;
-  email: string;
+  class_id: string;
   full_name: string;
-  grade: string;
   created_at: string;
   updated_at: string;
 }
@@ -51,7 +54,7 @@ export interface Student {
  * Student Insert Type
  * 
  * Type for inserting a new student record.
- * ID is optional since it can be auto-generated or manually set.
+ * ID is optional since it can be auto-generated.
  */
 export type StudentInsert = Omit<Student, 'created_at' | 'updated_at'> & {
   id?: string;
@@ -77,6 +80,9 @@ export interface Class {
   subject: string;
   grade: string;
   description: string | null;
+  class_code: string;
+  class_image_url: string | null;
+  class_icon: string;
   created_at: string;
   updated_at: string;
 }
@@ -87,7 +93,7 @@ export interface Class {
  * Type for inserting a new class record.
  * ID is optional since it can be auto-generated.
  */
-export type ClassInsert = Omit<Class, 'created_at' | 'updated_at'> & {
+export type ClassInsert = Omit<Class, 'id' | 'created_at' | 'updated_at'> & {
   id?: string;
 };
 
@@ -132,9 +138,118 @@ export interface Database {
         Insert: ClassInsert;
         Update: ClassUpdate;
       };
+      class_materials: {
+        Row: ClassMaterial;
+        Insert: ClassMaterialInsert;
+        Update: ClassMaterialUpdate;
+      };
+      quizzes: {
+        Row: Quiz;
+        Insert: QuizInsert;
+        Update: QuizUpdate;
+      };
+      quiz_questions: {
+        Row: QuizQuestion;
+        Insert: QuizQuestionInsert;
+        Update: QuizQuestionUpdate;
+      };
+      quiz_options: {
+        Row: QuizOption;
+        Insert: QuizOptionInsert;
+        Update: Partial<QuizOption>;
+      };
     };
   };
 }
+
+/**
+ * Class Material Entity
+ * 
+ * Represents educational materials for classes.
+ */
+export interface ClassMaterial {
+  id: string;
+  class_id: string;
+  title: string;
+  description: string | null;
+  material_type: 'pdf' | 'video' | 'document' | 'link' | 'image';
+  file_url: string | null;
+  available_from: string | null;
+  available_until: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ClassMaterialInsert = Omit<ClassMaterial, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+};
+
+export type ClassMaterialUpdate = Partial<Omit<ClassMaterial, 'id' | 'created_at' | 'updated_at'>>;
+
+/**
+ * Quiz Entity
+ * 
+ * Represents quizzes/tests for classes.
+ */
+export interface Quiz {
+  id: string;
+  class_id: string;
+  title: string;
+  description: string | null;
+  duration_minutes: number | null;
+  passing_score: number;
+  available_from: string | null;
+  available_until: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuizInsert = Omit<Quiz, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+};
+
+export type QuizUpdate = Partial<Omit<Quiz, 'id' | 'created_at' | 'updated_at'>>;
+
+/**
+ * Quiz Question Entity
+ * 
+ * Represents questions in quizzes.
+ */
+export interface QuizQuestion {
+  id: string;
+  quiz_id: string;
+  question_text: string;
+  question_type: 'single_choice' | 'multiple_choice' | 'open_ended';
+  points: number;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuizQuestionInsert = Omit<QuizQuestion, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+};
+
+export type QuizQuestionUpdate = Partial<Omit<QuizQuestion, 'id' | 'created_at' | 'updated_at'>>;
+
+/**
+ * Quiz Option Entity
+ * 
+ * Represents answer options for quiz questions.
+ */
+export interface QuizOption {
+  id: string;
+  question_id: string;
+  option_text: string;
+  is_correct: boolean;
+  order_index: number;
+  created_at: string;
+}
+
+export type QuizOptionInsert = Omit<QuizOption, 'id' | 'created_at'> & {
+  id?: string;
+};
 
 /**
  * Typed Supabase Client

@@ -1,19 +1,15 @@
+/**
+ * Classes Services
+ * 
+ * Services for class-related operations including student counts and material counts
+ */
+
 import { supabase } from './client';
-import type {
-  Class,
-  ClassInsert,
-  ClassUpdate,
-  Student,
-} from '@/types/database';
 import { DatabaseError, NetworkError } from '@/types/errors';
+import type { Class } from '@/types/database';
 
 /**
- * Get all classes for a specific teacher
- * 
- * @param teacherId - The teacher's user ID
- * @returns Array of classes belonging to the teacher
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
+ * Get all classes for a teacher
  */
 export async function getClasses(teacherId: string): Promise<Class[]> {
   try {
@@ -38,18 +34,12 @@ export async function getClasses(teacherId: string): Promise<Class[]> {
 
 /**
  * Create a new class
- * 
- * @param classData - The class data to insert
- * @returns The created class
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
  */
-export async function createClass(classData: ClassInsert): Promise<Class> {
+export async function createClass(classData: any): Promise<Class> {
   try {
-    // Type assertion needed due to Supabase TypeScript limitations
     const { data, error } = await supabase
       .from('classes')
-      .insert(classData as any)
+      .insert(classData)
       .select()
       .single();
 
@@ -71,23 +61,13 @@ export async function createClass(classData: ClassInsert): Promise<Class> {
 }
 
 /**
- * Update an existing class
- * 
- * @param classId - The class ID to update
- * @param updates - Partial class data to update
- * @returns The updated class
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
+ * Update a class
  */
-export async function updateClass(
-  classId: string,
-  updates: ClassUpdate
-): Promise<Class> {
+export async function updateClass(classId: string, updates: any): Promise<Class> {
   try {
     const { data, error } = await supabase
       .from('classes')
-      // @ts-expect-error - Supabase TypeScript limitations with update types
-      .update(updates as any)
+      .update(updates)
       .eq('id', classId)
       .select()
       .single();
@@ -111,10 +91,6 @@ export async function updateClass(
 
 /**
  * Delete a class
- * 
- * @param classId - The class ID to delete
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
  */
 export async function deleteClass(classId: string): Promise<void> {
   try {
@@ -135,65 +111,16 @@ export async function deleteClass(classId: string): Promise<void> {
 }
 
 /**
- * Get all students enrolled in a specific class
- * 
- * Note: This assumes a class_students junction table exists.
- * Adjust the query based on your actual database schema.
- * 
- * @param classId - The class ID
- * @returns Array of students enrolled in the class
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
+ * Add student to class
  */
-export async function getClassStudents(classId: string): Promise<Student[]> {
+export async function addStudentToClass(classId: string, studentId: string): Promise<void> {
   try {
-    // This query assumes a class_students junction table
-    // Adjust based on your actual schema
-    const { data, error } = await supabase
-      .from('class_students')
-      .select('student_id, students(*)')
-      .eq('class_id', classId);
-
-    if (error) {
-      throw new DatabaseError(error.message);
-    }
-
-    // Extract student objects from the join result
-    const students = data?.map((item: any) => item.students).filter(Boolean) || [];
-    return students;
-  } catch (error) {
-    if (error instanceof DatabaseError) {
-      throw error;
-    }
-    throw new NetworkError('Failed to fetch class students');
-  }
-}
-
-/**
- * Add a student to a class
- * 
- * Note: This assumes a class_students junction table exists.
- * Adjust based on your actual database schema.
- * 
- * @param classId - The class ID
- * @param studentId - The student ID to add
- * @throws {DatabaseError} If database operation fails
- * @throws {NetworkError} If network request fails
- */
-export async function addStudentToClass(
-  classId: string,
-  studentId: string
-): Promise<void> {
-  try {
-    // This assumes a class_students junction table
-    // Adjust based on your actual schema
-    // Type assertion needed due to Supabase TypeScript limitations
     const { error } = await supabase
       .from('class_students')
       .insert({
         class_id: classId,
         student_id: studentId,
-      } as any);
+      });
 
     if (error) {
       throw new DatabaseError(error.message);
@@ -203,5 +130,132 @@ export async function addStudentToClass(
       throw error;
     }
     throw new NetworkError('Failed to add student to class');
+  }
+}
+
+/**
+ * Get student count for a class
+ */
+export async function getClassStudentCount(classId: string): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from('class_students')
+      .select('*', { count: 'exact', head: true })
+      .eq('class_id', classId);
+
+    if (error) {
+      throw new DatabaseError(error.message);
+    }
+
+    return count || 0;
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to fetch student count');
+  }
+}
+
+/**
+ * Get material count for a class
+ */
+export async function getClassMaterialCount(classId: string): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from('class_materials')
+      .select('*', { count: 'exact', head: true })
+      .eq('class_id', classId);
+
+    if (error) {
+      // If table doesn't exist or other error, return 0
+      console.warn('Materials table error:', error.message);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.warn('Failed to fetch material count:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get quiz count for a class
+ */
+export async function getClassQuizCount(classId: string): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from('quizzes')
+      .select('*', { count: 'exact', head: true })
+      .eq('class_id', classId);
+
+    if (error) {
+      // If table doesn't exist or other error, return 0
+      console.warn('Quizzes table error:', error.message);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.warn('Failed to fetch quiz count:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get all stats for a class (students, materials, quizzes)
+ */
+export async function getClassStats(classId: string) {
+  try {
+    // Run all queries in parallel, but handle each error independently
+    const [studentCount, materialCount, quizCount] = await Promise.allSettled([
+      getClassStudentCount(classId),
+      getClassMaterialCount(classId),
+      getClassQuizCount(classId),
+    ]);
+
+    return {
+      students: studentCount.status === 'fulfilled' ? studentCount.value : 0,
+      materials: materialCount.status === 'fulfilled' ? materialCount.value : 0,
+      quizzes: quizCount.status === 'fulfilled' ? quizCount.value : 0,
+    };
+  } catch (error) {
+    console.error('Error fetching class stats:', error);
+    return {
+      students: 0,
+      materials: 0,
+      quizzes: 0,
+    };
+  }
+}
+
+/**
+ * Get students in a class with their details
+ */
+export async function getClassStudents(classId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('class_students')
+      .select(`
+        student_id,
+        enrolled_at,
+        students (
+          id,
+          full_name
+        )
+      `)
+      .eq('class_id', classId)
+      .order('enrolled_at', { ascending: false });
+
+    if (error) {
+      throw new DatabaseError(error.message);
+    }
+
+    return data || [];
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to fetch class students');
   }
 }

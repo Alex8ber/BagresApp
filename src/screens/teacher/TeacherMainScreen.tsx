@@ -7,15 +7,18 @@
  * Requirements: 1.9, 2.1, 5.2, 5.9, 10.14, 11.1, 11.9
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { TeacherTabScreenProps } from '@/types/navigation';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types/navigation';
 import { theme } from '@/styles';
 import { useAuth } from '@/hooks/useAuth';
+import { useTeacherClasses } from '@/hooks';
+import type { Teacher } from '@/types/models';
+import { getClassStudentCount } from '@/services/supabase/classes';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -29,12 +32,90 @@ type Props = TeacherTabScreenProps<'Main'>;
 export default function TeacherMainScreen(_props: Props) {
   const navigation = useNavigation<NavigationProp>();
   const { profile } = useAuth();
+  const { classes, loading, refetch } = useTeacherClasses();
+  
+  const teacherProfile = profile as Teacher | null;
+  const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
+  const [loadingCounts, setLoadingCounts] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  // Mock data - replace with real data later
-  const activeClasses = [
-    { id: '1', name: '2do Grado - Mate', students: 24, color: '#E3F2FD', emoji: '🔢' },
-    { id: '2', name: '1er Grado - Ciencias', students: 18, color: '#BBDEFB', emoji: '🔬' },
-  ];
+  // Load notification count
+  useEffect(() => {
+    loadNotificationCount();
+  }, [profile]);
+
+  const loadNotificationCount = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { getUnreadCount } = await import('@/services/supabase/notifications');
+      const count = await getUnreadCount(profile.id, 'teacher');
+      setUnreadNotifications(count);
+    } catch (error) {
+      console.error('Error loading notification count:', error);
+    }
+  };
+
+  // Load student counts for all classes
+  const loadStudentCounts = async () => {
+    if (classes.length === 0) return;
+    
+    setLoadingCounts(true);
+    try {
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        classes.map(async (classItem) => {
+          const count = await getClassStudentCount(classItem.id);
+          counts[classItem.id] = count;
+        })
+      );
+      setStudentCounts(counts);
+    } catch (error) {
+      console.error('Error loading student counts:', error);
+    } finally {
+      setLoadingCounts(false);
+    }
+  };
+
+  // Load student counts when classes change
+  useEffect(() => {
+    loadStudentCounts();
+  }, [classes]);
+
+  // Refetch classes when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
+  // Map classes to display format with emojis based on subject
+  const getSubjectEmoji = (subject: string): string => {
+    const subjectLower = subject.toLowerCase();
+    if (subjectLower.includes('mate') || subjectLower.includes('math')) return '🔢';
+    if (subjectLower.includes('ciencia') || subjectLower.includes('science')) return '🔬';
+    if (subjectLower.includes('español') || subjectLower.includes('lengua')) return '📚';
+    if (subjectLower.includes('inglés') || subjectLower.includes('english')) return '🌍';
+    if (subjectLower.includes('arte') || subjectLower.includes('art')) return '🎨';
+    if (subjectLower.includes('música') || subjectLower.includes('music')) return '🎵';
+    if (subjectLower.includes('educación física') || subjectLower.includes('deporte')) return '⚽';
+    if (subjectLower.includes('historia') || subjectLower.includes('history')) return '📜';
+    return '📖'; // Default emoji
+  };
+
+  const getSubjectColor = (index: number): string => {
+    const colors = ['#E3F2FD', '#BBDEFB', '#E8F5E9', '#FFF3E0', '#F3E5F5', '#FFE0B2'];
+    return colors[index % colors.length];
+  };
+
+  const activeClasses = classes.map((classItem, index) => ({
+    id: classItem.id,
+    name: classItem.name,
+    students: studentCounts[classItem.id] || 0,
+    color: getSubjectColor(index),
+    emoji: classItem.class_icon || getSubjectEmoji(classItem.subject),
+    imageUrl: classItem.class_image_url,
+  }));
 
   const upcomingActivities = [
     { id: '1', time: '10:30 AM', title: 'Taller de Fracciones', subtitle: 'Aula 402 • 2do Grado - Mate' },
@@ -51,15 +132,29 @@ export default function TeacherMainScreen(_props: Props) {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>👨‍🏫</Text>
+              {teacherProfile?.avatarUrl ? (
+                <Image source={{ uri: teacherProfile.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>👨‍🏫</Text>
+              )}
             </View>
             <View>
               <Text style={styles.greeting}>GOOD MORNING</Text>
               <Text style={styles.userName}>¡{profile?.fullName || 'Sr. Smith'}!</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('TeacherNotifications')}
+          >
             <Ionicons name="notifications-outline" size={24} color="#fff" />
+            {unreadNotifications > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -78,41 +173,61 @@ export default function TeacherMainScreen(_props: Props) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Tus Clases Activas</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('TeacherDashboard', { screen: 'Classes' })}>
               <Text style={styles.seeAllButton}>Ver todo</Text>
             </TouchableOpacity>
           </View>
           
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.classesScroll}
-          >
-            {activeClasses.map((classItem) => (
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.colors.teacher.main} />
+            </View>
+          ) : activeClasses.length === 0 ? (
+            <View style={styles.emptyClassesContainer}>
+              <Text style={styles.emptyClassesText}>No tienes clases aún</Text>
               <TouchableOpacity 
-                key={classItem.id} 
-                style={[styles.classCard, { backgroundColor: classItem.color }]}
-                activeOpacity={0.8}
+                style={styles.createClassButton}
+                onPress={() => navigation.navigate('TeacherCreateClass', {})}
               >
-                <Text style={[styles.classEmoji, classItem.textColor && { color: classItem.textColor }]}>
-                  {classItem.emoji}
-                </Text>
-                <Text style={[styles.className, classItem.textColor && { color: classItem.textColor }]}>
-                  {classItem.name}
-                </Text>
-                <View style={styles.classStudents}>
-                  <Ionicons 
-                    name="people" 
-                    size={14} 
-                    color={classItem.textColor || theme.colors.text.secondary} 
-                  />
-                  <Text style={[styles.classStudentsText, classItem.textColor && { color: classItem.textColor }]}>
-                    {classItem.students} Estudiantes
-                  </Text>
-                </View>
+                <Text style={styles.createClassButtonText}>Crear Primera Clase</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            </View>
+          ) : (
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.classesScroll}
+            >
+              {activeClasses.map((classItem) => (
+                <TouchableOpacity 
+                  key={classItem.id} 
+                  style={[styles.classCard, { backgroundColor: classItem.color }]}
+                  activeOpacity={0.8}
+                >
+                  {classItem.imageUrl ? (
+                    <Image source={{ uri: classItem.imageUrl }} style={styles.classCardImage} />
+                  ) : (
+                    <Text style={styles.classEmoji}>
+                      {classItem.emoji}
+                    </Text>
+                  )}
+                  <Text style={styles.className}>
+                    {classItem.name}
+                  </Text>
+                  <View style={styles.classStudents}>
+                    <Ionicons 
+                      name="people" 
+                      size={14} 
+                      color={theme.colors.text.secondary} 
+                    />
+                    <Text style={styles.classStudentsText}>
+                      {classItem.students} Estudiantes
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         {/* Quick Actions Section */}
@@ -135,7 +250,7 @@ export default function TeacherMainScreen(_props: Props) {
 
             <TouchableOpacity 
               style={styles.actionCard}
-              onPress={() => console.log('Lista de Alumnos')}
+              onPress={() => navigation.navigate('TeacherDashboard', { screen: 'Classes' })}
               activeOpacity={0.8}
             >
               <View style={[styles.actionIcon, { backgroundColor: '#E3F2FD' }]}>
@@ -233,6 +348,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     fontSize: 24,
@@ -255,6 +375,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#E53E3E',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.teacher.main,
+  },
+
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
 
   // Ready Card
@@ -339,6 +481,11 @@ const styles = StyleSheet.create({
   classEmoji: {
     fontSize: 32,
   },
+  classCardImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
   className: {
     fontSize: 15,
     fontWeight: '700',
@@ -355,6 +502,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.text.secondary,
     fontWeight: '500',
+  },
+
+  // Loading and Empty States
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyClassesContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyClassesText: {
+    fontSize: 15,
+    color: theme.colors.text.secondary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  createClassButton: {
+    backgroundColor: theme.colors.teacher.main,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  createClassButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 
   // Actions Grid

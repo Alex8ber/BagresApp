@@ -103,7 +103,7 @@ export function TeacherProvider({ children }: TeacherProviderProps) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load classes';
       setError(errorMessage);
-      console.error('Failed to load classes:', err);
+      console.error('[TeacherContext] Failed to load classes:', err);
     } finally {
       setLoading(false);
     }

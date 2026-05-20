@@ -34,12 +34,12 @@ import type { RootStackScreenProps } from '@/types/navigation';
 type Props = RootStackScreenProps<'StudentLogin'>;
 
 interface StudentLoginFormData {
-  username: string;
+  fullName: string;
   classCode: string;
 }
 
 interface StudentLoginFormErrors {
-  username?: string;
+  fullName?: string;
   classCode?: string;
 }
 
@@ -53,20 +53,22 @@ export default function StudentLoginScreen({ navigation }: Props) {
 
   const { values, errors, handleChange, handleSubmit } = useForm<StudentLoginFormData>({
     initialValues: {
-      username: '',
+      fullName: '',
       classCode: '',
     },
     validate: (values) => {
       const errors: StudentLoginFormErrors = {};
       
-      const usernameError = validateRequired(values.username, 'Name / Username');
-      if (usernameError) {
-        errors.username = usernameError;
+      const nameError = validateRequired(values.fullName, 'Nombre');
+      if (nameError) {
+        errors.fullName = nameError;
       }
       
-      const classCodeError = validateRequired(values.classCode, 'Class Code');
+      const classCodeError = validateRequired(values.classCode, 'Código de clase');
       if (classCodeError) {
         errors.classCode = classCodeError;
+      } else if (values.classCode.length !== 6) {
+        errors.classCode = 'El código debe tener 6 caracteres';
       }
       
       return errors;
@@ -74,21 +76,32 @@ export default function StudentLoginScreen({ navigation }: Props) {
     onSubmit: async (data) => {
       try {
         setError(undefined);
-        // For student login, we use username as email placeholder
-        await signIn(data.username, data.classCode, 'student');
+        // For student login, pass full name and class code
+        await signIn(data.fullName, data.classCode, 'student');
         // Navigation is handled by auth state change
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Login failed');
+        // Extract user-friendly error message
+        let errorMessage = 'Error al unirse a la clase';
+        
+        if (err instanceof Error) {
+          errorMessage = err.message;
+        }
+        
+        // Show specific error for invalid class code
+        if (errorMessage.includes('inválido') || errorMessage.includes('invalid')) {
+          errorMessage = 'Código de clase inválido. Verifica con tu profesor.';
+        } else if (errorMessage.includes('nombre') || errorMessage.includes('name')) {
+          errorMessage = 'Por favor verifica tu nombre e intenta de nuevo.';
+        }
+        
+        setError(errorMessage);
+        // Don't re-throw the error to prevent navigation away from this screen
       }
     },
   });
 
-  const handleGoToRegister = () => {
-    navigation.replace('StudentRegister');
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -106,31 +119,31 @@ export default function StudentLoginScreen({ navigation }: Props) {
 
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Hola, estudiante</Text>
+              <Text style={styles.title}>¡Únete a tu clase!</Text>
               <Text style={styles.subtitle}>
-                Ingresa tus datos para unirte{'\n'}a una clase
+                Ingresa tu nombre y el código{'\n'}que te dio tu profesor
               </Text>
             </View>
 
             {/* Form */}
             <View style={styles.form}>
-              <Text style={styles.label}>Nombre / Usuario</Text>
+              <Text style={styles.label}>Tu nombre</Text>
               <Input
-                placeholder="Ej. Juan Pérez"
-                value={values.username}
-                onChangeText={handleChange('username')}
-                error={errors.username}
+                placeholder="Ej: Juan Pérez"
+                value={values.fullName}
+                onChangeText={handleChange('fullName')}
+                error={errors.fullName}
                 autoCapitalize="words"
                 editable={!loading}
                 leftIcon={<Ionicons name="person-outline" size={20} color={theme.colors.text.tertiary} />}
                 focusColor={theme.colors.student.main}
               />
 
-              <Text style={styles.label}>Código de Clase</Text>
+              <Text style={styles.label}>Código de clase</Text>
               <Input
-                placeholder="6 caracteres (Ej. AB12CD)"
+                placeholder="ABC123"
                 value={values.classCode}
-                onChangeText={handleChange('classCode')}
+                onChangeText={(text) => handleChange('classCode')(text.toUpperCase())}
                 error={errors.classCode}
                 maxLength={6}
                 autoCapitalize="characters"
@@ -145,24 +158,28 @@ export default function StudentLoginScreen({ navigation }: Props) {
                 </View>
               )}
 
-              <Button
-                variant="primary"
-                size="large"
-                fullWidth
+              <TouchableOpacity
+                style={[styles.button, styles.loginButton, styles.studentLoginButton]}
                 onPress={handleSubmit}
-                loading={loading}
-                style={styles.submitButton}
+                activeOpacity={0.8}
+                disabled={loading}
               >
-                Iniciar Sesión
-              </Button>
+                {loading ? (
+                  <Text style={styles.loginButtonText}>Cargando...</Text>
+                ) : (
+                  <Text style={styles.loginButtonText}>Unirme</Text>
+                )}
+              </TouchableOpacity>
 
-              {/* Register Link */}
-              <View style={styles.registerPrompt}>
-                <Text style={styles.registerPromptText}>¿No tienes una cuenta? </Text>
-                <TouchableOpacity onPress={handleGoToRegister} disabled={loading}>
-                  <Text style={styles.registerLink}>Regístrate aquí</Text>
-                </TouchableOpacity>
-              </View>
+              {/* Back Button */}
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+                disabled={loading}
+              >
+                <Ionicons name="arrow-back" size={20} color={theme.colors.student.main} />
+                <Text style={styles.backButtonText}>Volver</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -178,7 +195,7 @@ export default function StudentLoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F0F9F4',
   },
 
   keyboardView: {
@@ -273,21 +290,45 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  registerPrompt: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  button: {
+    flex: 1,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
-  registerPromptText: {
-    fontSize: 14,
-    color: theme.colors.text.secondary,
+  loginButton: {
+    backgroundColor: '#fff',
   },
 
-  registerLink: {
-    fontSize: 14,
+  studentLoginButton: {
+    backgroundColor: theme.colors.student.main,
+  },
+
+  loginButtonText: {
+    color: '#fff',
     fontWeight: '600',
+    fontSize: 16,
+  },
+
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
     color: theme.colors.student.main,
   },
 });
