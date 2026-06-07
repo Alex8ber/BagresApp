@@ -12,3 +12,4 @@ export { default as TeacherLoginScreen } from './TeacherLoginScreen';
 export { default as StudentLoginScreen } from './StudentLoginScreen';
 export { default as TeacherRegisterScreen } from './TeacherRegisterScreen';
 export { default as TeacherVerificationScreen } from './TeacherVerificationScreen';
+export { default as AdminLoginScreen } from './AdminLoginScreen';

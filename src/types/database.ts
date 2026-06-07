@@ -17,6 +17,25 @@ export interface Teacher {
 }
 
 /**
+ * Admin Entity
+ * 
+ * Represents an admin user in the system.
+ */
+export interface Admin {
+  id: string;
+  email: string;
+  full_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdminInsert = Omit<Admin, 'created_at' | 'updated_at'> & {
+  id?: string;
+};
+
+export type AdminUpdate = Partial<Omit<Admin, 'id' | 'created_at' | 'updated_at'>>;
+
+/**
  * Teacher Insert Type
  * 
  * Type for inserting a new teacher record.
@@ -123,6 +142,11 @@ export type ClassUpdate = Partial<Omit<Class, 'id' | 'created_at' | 'updated_at'
 export interface Database {
   public: {
     Tables: {
+      admins: {
+        Row: Admin;
+        Insert: AdminInsert;
+        Update: AdminUpdate;
+      };
       teachers: {
         Row: Teacher;
         Insert: TeacherInsert;
@@ -157,6 +181,11 @@ export interface Database {
         Row: QuizOption;
         Insert: QuizOptionInsert;
         Update: Partial<QuizOption>;
+      };
+      quiz_submissions: {
+        Row: QuizSubmission;
+        Insert: QuizSubmissionInsert;
+        Update: QuizSubmissionUpdate;
       };
     };
   };
@@ -250,6 +279,33 @@ export interface QuizOption {
 export type QuizOptionInsert = Omit<QuizOption, 'id' | 'created_at'> & {
   id?: string;
 };
+
+/**
+ * Quiz Submission Entity
+ * 
+ * Represents a student's submission for a quiz.
+ */
+export interface QuizSubmission {
+  id: string;
+  student_id: string;
+  quiz_id: string;
+  answers: any;
+  submitted_at: string;
+  auto_submitted: boolean;
+  score: number | null;
+  correct_answers: number | null;
+  total_questions: number | null;
+}
+
+export type QuizSubmissionInsert = Omit<QuizSubmission, 'id' | 'submitted_at' | 'score' | 'correct_answers' | 'total_questions'> & {
+  id?: string;
+  submitted_at?: string;
+  score?: number | null;
+  correct_answers?: number | null;
+  total_questions?: number | null;
+};
+
+export type QuizSubmissionUpdate = Partial<Omit<QuizSubmission, 'id' | 'submitted_at'>>;
 
 /**
  * Typed Supabase Client

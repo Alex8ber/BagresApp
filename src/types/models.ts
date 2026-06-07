@@ -23,6 +23,15 @@ export interface BaseUser {
 }
 
 /**
+ * Admin
+ * 
+ * Represents an administrator user.
+ */
+export interface Admin extends BaseUser {
+  email: string;
+}
+
+/**
  * Teacher
  * 
  * Represents a teacher user with additional teacher-specific properties.

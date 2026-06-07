@@ -12,11 +12,13 @@ import type {
   Teacher as DbTeacher,
   Student as DbStudent,
   Class as DbClass,
+  Admin as DbAdmin,
 } from '@/types/database';
 import type {
   Teacher,
   Student,
   Class,
+  Admin,
 } from '@/types/models';
 
 /**
@@ -46,6 +48,24 @@ export function transformTeacher(dbTeacher: DbTeacher): Teacher {
     subjects: [], // Load from relationship if needed
     createdAt: new Date(dbTeacher.created_at),
     updatedAt: new Date(dbTeacher.updated_at),
+  };
+}
+
+/**
+ * Transform database admin to domain model
+ * 
+ * Converts snake_case fields to camelCase and string timestamps to Date objects.
+ * 
+ * @param dbAdmin - Admin record from database
+ * @returns Domain model admin
+ */
+export function transformAdmin(dbAdmin: DbAdmin): Admin {
+  return {
+    id: dbAdmin.id,
+    email: dbAdmin.email,
+    fullName: dbAdmin.full_name,
+    createdAt: new Date(dbAdmin.created_at),
+    updatedAt: new Date(dbAdmin.updated_at),
   };
 }
 

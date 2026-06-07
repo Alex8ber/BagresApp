@@ -8,6 +8,8 @@
 export type {
   RootStackParamList,
   TeacherTabParamList,
+  AdminTabParamList,
   RootStackScreenProps,
   TeacherTabScreenProps,
+  AdminTabScreenProps,
 } from '@/types/navigation';

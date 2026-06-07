@@ -3,6 +3,7 @@ import { supabase } from './client';
 import type {
   Teacher,
   Student,
+  Admin,
   TeacherInsert,
   StudentInsert,
 } from '@/types/database';
@@ -253,6 +254,38 @@ export async function getTeacherProfile(userId: string): Promise<Teacher | null>
       throw error;
     }
     throw new NetworkError('Failed to fetch teacher profile');
+  }
+}
+
+/**
+ * Get an admin profile by user ID
+ * 
+ * @param userId - The auth user ID
+ * @returns The admin profile or null if not found
+ * @throws {DatabaseError} If database operation fails
+ * @throws {NetworkError} If network request fails
+ */
+export async function getAdminProfile(userId: string): Promise<Admin | null> {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw new DatabaseError(error.message);
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to fetch admin profile');
   }
 }
 

@@ -12,6 +12,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '@/styles/theme';
 import type { RootStackScreenProps } from '@/types/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 // ============================================================================
 // Types
@@ -24,6 +25,8 @@ type Props = RootStackScreenProps<'RoleSelection'>;
 // ============================================================================
 
 export default function RoleSelectionScreen({ navigation }: Props) {
+  const { mockSignInAdmin } = useAuth();
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
@@ -83,6 +86,15 @@ export default function RoleSelectionScreen({ navigation }: Props) {
             </View>
           </View>
         </View>
+        
+        {/* Admin Login Button */}
+        <TouchableOpacity 
+          style={styles.adminLoginContainer}
+          onPress={mockSignInAdmin}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.adminLoginText}>Acceso Administrador</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -246,5 +258,18 @@ const styles = StyleSheet.create({
 
   studentRegisterText: {
     color: '#fff',
+  },
+
+  adminLoginContainer: {
+    marginTop: 30,
+    padding: 10,
+    alignItems: 'center',
+  },
+
+  adminLoginText: {
+    color: '#95a5a6',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });

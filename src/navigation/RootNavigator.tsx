@@ -19,7 +19,11 @@ import {
   TeacherLoginScreen,
   TeacherRegisterScreen,
   TeacherVerificationScreen,
+  AdminLoginScreen,
 } from '@/screens/auth';
+
+// Admin Screens
+import AdminDashboardTabs from '@/screens/admin/AdminDashboardTabs';
 
 // Teacher Screens
 import { TeacherDashboardTabs } from '@/screens/teacher';
@@ -131,6 +135,28 @@ export function RootNavigator() {
               headerStyle: {
                 backgroundColor: colors.teacher.main,
               },
+            }}
+          />
+          
+          <Stack.Screen
+            name="AdminLogin"
+            component={AdminLoginScreen}
+            options={{
+              title: 'Admin Login',
+              headerStyle: {
+                backgroundColor: '#333',
+              },
+            }}
+          />
+        </>
+      ) : role === 'admin' ? (
+        // Admin Stack - shown when authenticated as admin
+        <>
+          <Stack.Screen
+            name="AdminDashboard"
+            component={AdminDashboardTabs}
+            options={{
+              headerShown: false,
             }}
           />
         </>

@@ -30,10 +30,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { Teacher, Student } from '@/types/models';
+import type { Teacher, Student, Admin } from '@/types/models';
 import type { TeacherInsert, StudentInsert } from '@/types/database';
 import * as authService from '@/services/supabase/auth';
-import { transformTeacher, transformStudent } from '@/utils/transformers';
+import { transformTeacher, transformStudent, transformAdmin } from '@/utils/transformers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STUDENT_PROFILE_KEY = '@bagres_student_session';
@@ -41,7 +41,7 @@ const STUDENT_PROFILE_KEY = '@bagres_student_session';
 /**
  * User role type
  */
-export type UserRole = 'teacher' | 'student' | null;
+export type UserRole = 'teacher' | 'student' | 'admin' | null;
 
 /**
  * Authentication context state
@@ -49,8 +49,8 @@ export type UserRole = 'teacher' | 'student' | null;
 export interface AuthContextState {
   /** Currently authenticated user */
   user: User | null;
-  /** User profile (Teacher or Student) */
-  profile: Teacher | Student | null;
+  /** User profile (Teacher, Student, or Admin) */
+  profile: Teacher | Student | Admin | null;
   /** User role */
   role: UserRole;
   /** Whether auth state is loading (initial load or during operations) */
@@ -71,6 +71,8 @@ export interface AuthContextActions {
   signOut: () => Promise<void>;
   /** Refresh the user profile */
   refreshProfile: () => Promise<void>;
+  /** Temporarily bypass admin login */
+  mockSignInAdmin: () => void;
 }
 
 /**
@@ -98,7 +100,7 @@ interface AuthProviderProps {
  */
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Teacher | Student | null>(null);
+  const [profile, setProfile] = useState<Teacher | Student | Admin | null>(null);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [initializing, setInitializing] = useState<boolean>(true);
@@ -125,6 +127,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (studentProfile) {
           setProfile(transformStudent(studentProfile));
           setRole('student');
+        }
+      } else if (userRole === 'admin') {
+        const adminProfile = await authService.getAdminProfile(userId);
+        if (adminProfile) {
+          setProfile(transformAdmin(adminProfile));
+          setRole('admin');
         }
       }
     } catch (err) {
@@ -166,17 +174,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
 
-        // 2. Check for teacher session (Supabase Auth)
+        // 2. Check for teacher/admin session (Supabase Auth)
         const currentUser = await authService.getCurrentUser();
         
         if (currentUser) {
           setUser(currentUser);
           
-          // Only teachers are expected to have a Supabase Auth session
-          const teacherProfile = await authService.getTeacherProfile(currentUser.id);
-          if (teacherProfile) {
-            setProfile(transformTeacher(teacherProfile));
-            setRole('teacher');
+          // Check if user is an admin first
+          const adminProfile = await authService.getAdminProfile(currentUser.id);
+          if (adminProfile) {
+            setProfile(transformAdmin(adminProfile));
+            setRole('admin');
+          } else {
+            // Check if teacher
+            const teacherProfile = await authService.getTeacherProfile(currentUser.id);
+            if (teacherProfile) {
+              setProfile(transformTeacher(teacherProfile));
+              setRole('teacher');
+            }
           }
         }
       } catch (err) {
@@ -305,8 +320,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setProfile(null);
       setRole(null);
       
-      // Only call Supabase signOut for teachers (students don't have auth sessions)
-      if (currentRole === 'teacher') {
+      // Only call Supabase signOut for teachers and admins (students don't have auth sessions)
+      if (currentRole === 'teacher' || currentRole === 'admin') {
         await authService.signOut();
       } else if (currentRole === 'student') {
         await AsyncStorage.removeItem(STUDENT_PROFILE_KEY);
@@ -343,6 +358,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [user, role, loadProfile]);
 
+  const mockSignInAdmin = useCallback(() => {
+    setRole('admin');
+    setProfile({
+      id: 'mock-admin-id',
+      email: 'admin@bagres.app',
+      fullName: 'Super Admin',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }, []);
+
   const value: AuthContextValue = {
     user,
     profile,
@@ -353,6 +379,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signUp,
     signOut,
     refreshProfile,
+    mockSignInAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
