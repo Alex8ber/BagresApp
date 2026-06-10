@@ -25,12 +25,15 @@ export interface Admin {
   id: string;
   email: string;
   full_name: string;
+  /** Nombre de usuario único para el login del administrador */
+  nombre_usuario: string;
   created_at: string;
   updated_at: string;
 }
 
 export type AdminInsert = Omit<Admin, 'created_at' | 'updated_at'> & {
   id?: string;
+  nombre_usuario?: string;
 };
 
 export type AdminUpdate = Partial<Omit<Admin, 'id' | 'created_at' | 'updated_at'>>;

@@ -29,6 +29,8 @@ export interface BaseUser {
  */
 export interface Admin extends BaseUser {
   email: string;
+  /** Nombre de usuario único para el login (ej: 'admin') */
+  nombreUsuario: string;
 }
 
 /**

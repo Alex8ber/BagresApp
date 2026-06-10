@@ -290,6 +290,56 @@ export async function getAdminProfile(userId: string): Promise<Admin | null> {
 }
 
 /**
+ * Get admin email by username (for username-based login)
+ *
+ * Uses a database function to look up the admin's internal email
+ * based on their public-facing username. This allows the admin to
+ * log in using just their username (e.g. "admin") instead of the
+ * internal email format.
+ *
+ * @param username - The admin's nombre_usuario (e.g. "admin")
+ * @returns The internal email to use with Supabase Auth, or null if not found
+ * @throws {DatabaseError} If database operation fails
+ * @throws {NetworkError} If network request fails
+ */
+export async function getAdminEmailByUsername(username: string): Promise<string | null> {
+  try {
+    // Try using the DB function first (most reliable)
+    const { data, error } = await supabase
+      .rpc('get_admin_email_by_username', { p_username: username.trim().toLowerCase() });
+
+    if (!error && data) {
+      return data as string;
+    }
+
+    // Fallback: query the table directly
+    const { data: adminRow, error: tableError } = await supabase
+      .from('admins')
+      .select('email')
+      .ilike('nombre_usuario', username.trim())
+      .maybeSingle();
+
+    if (tableError) {
+      throw new DatabaseError(tableError.message);
+    }
+
+    if (adminRow?.email) {
+      return adminRow.email;
+    }
+
+    // Last fallback: construct the internal email from the username pattern
+    // Only works if the admin was created following the convention
+    return null;
+  } catch (error) {
+    if (error instanceof DatabaseError) {
+      throw error;
+    }
+    throw new NetworkError('Failed to look up admin by username');
+  }
+}
+
+
+/**
  * Get a student profile by user ID
  * 
  * @param userId - The auth user ID

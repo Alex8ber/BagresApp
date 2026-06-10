@@ -64,6 +64,7 @@ export function transformAdmin(dbAdmin: DbAdmin): Admin {
     id: dbAdmin.id,
     email: dbAdmin.email,
     fullName: dbAdmin.full_name,
+    nombreUsuario: dbAdmin.nombre_usuario,
     createdAt: new Date(dbAdmin.created_at),
     updatedAt: new Date(dbAdmin.updated_at),
   };

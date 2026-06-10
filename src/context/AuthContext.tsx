@@ -71,8 +71,6 @@ export interface AuthContextActions {
   signOut: () => Promise<void>;
   /** Refresh the user profile */
   refreshProfile: () => Promise<void>;
-  /** Temporarily bypass admin login */
-  mockSignInAdmin: () => void;
 }
 
 /**
@@ -218,7 +216,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true); // Internal loading state for button
       setError(null);
 
-      // Real authentication - different flow for students vs teachers
+      // Real authentication - different flow for students vs teachers vs admin
       if (userRole === 'student') {
         // Students join a class with name + class code (NO auth account needed)
         const { student } = await authService.joinClassWithCode(
@@ -233,6 +231,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setProfile(transformedStudent);
         setRole('student');
         await AsyncStorage.setItem(STUDENT_PROFILE_KEY, JSON.stringify(transformedStudent));
+      } else if (userRole === 'admin') {
+        // ── Admin login: resolve username → internal email → Supabase Auth ──
+        // emailOrName is the nombre_usuario (e.g. "admin")
+        const adminEmail = await authService.getAdminEmailByUsername(emailOrName);
+
+        if (!adminEmail) {
+          throw new Error('Usuario administrador no encontrado. Verifica el nombre de usuario.');
+        }
+
+        const authenticatedUser = await authService.signIn(adminEmail, passwordOrCode);
+        setUser(authenticatedUser);
+
+        // Load admin profile from the admins table
+        const adminProfile = await authService.getAdminProfile(authenticatedUser.id);
+        if (!adminProfile) {
+          throw new Error('Perfil de administrador no encontrado en la base de datos.');
+        }
+        setProfile(transformAdmin(adminProfile));
+        setRole('admin');
       } else {
         // Teachers use email/password authentication
         const authenticatedUser = await authService.signIn(emailOrName, passwordOrCode);
@@ -358,17 +375,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [user, role, loadProfile]);
 
-  const mockSignInAdmin = useCallback(() => {
-    setRole('admin');
-    setProfile({
-      id: 'mock-admin-id',
-      email: 'admin@bagres.app',
-      fullName: 'Super Admin',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  }, []);
-
   const value: AuthContextValue = {
     user,
     profile,
@@ -379,7 +385,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signUp,
     signOut,
     refreshProfile,
-    mockSignInAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
