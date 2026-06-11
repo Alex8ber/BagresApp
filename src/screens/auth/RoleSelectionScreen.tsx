@@ -24,6 +24,7 @@ type Props = RootStackScreenProps<'RoleSelection'>;
 // ============================================================================
 
 export default function RoleSelectionScreen({ navigation }: Props) {
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
@@ -83,6 +84,15 @@ export default function RoleSelectionScreen({ navigation }: Props) {
             </View>
           </View>
         </View>
+        
+        {/* Admin Login Button */}
+        <TouchableOpacity 
+          style={styles.adminLoginContainer}
+          onPress={() => navigation.navigate('AdminLogin')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.adminLoginText}>Acceso Administrador</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -246,5 +256,18 @@ const styles = StyleSheet.create({
 
   studentRegisterText: {
     color: '#fff',
+  },
+
+  adminLoginContainer: {
+    marginTop: 30,
+    padding: 10,
+    alignItems: 'center',
+  },
+
+  adminLoginText: {
+    color: '#95a5a6',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
 });

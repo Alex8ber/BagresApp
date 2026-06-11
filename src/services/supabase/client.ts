@@ -50,7 +50,17 @@ if (!isConfigured) {
  * // data is typed as Teacher[]
  * ```
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export const supabase: TypedSupabaseClient = createClient<Database>(
   SUPABASE_URL,
-  SUPABASE_ANON_KEY
+  SUPABASE_ANON_KEY,
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  }
 );

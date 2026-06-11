@@ -14,6 +14,7 @@ export type RootStackParamList = {
   TeacherLogin: undefined;
   TeacherRegister: undefined;
   TeacherVerification: { email: string };
+  AdminLogin: undefined;
   StudentDashboard: undefined;
   TeacherDashboard: undefined;
   TeacherStudentsList: { classId: string };
@@ -45,6 +46,7 @@ export type RootStackParamList = {
   TeacherEditProfile: undefined;
   TeacherNotifications: undefined;
   TeacherSchedule: undefined;
+  AdminDashboard: undefined;
 };
 
 /**
@@ -69,6 +71,17 @@ export type StudentTabParamList = {
   Main: undefined;
   Library: undefined;
   Profile: undefined;
+};
+
+/**
+ * Admin Dashboard Tabs Parameter List
+ * 
+ * Defines all tabs in the admin dashboard bottom tab navigator.
+ */
+export type AdminTabParamList = {
+  Overview: undefined;
+  Content: undefined;
+  Qualifications: undefined;
 };
 
 /**
@@ -125,6 +138,15 @@ export type TeacherTabScreenProps<T extends keyof TeacherTabParamList> =
  */
 export type StudentTabScreenProps<T extends keyof StudentTabParamList> =
   BottomTabScreenProps<StudentTabParamList, T>;
+
+/**
+ * Admin Tab Screen Props
+ * 
+ * Type-safe props for screens in the admin dashboard tab navigator.
+ * Provides typed navigation and route props for tab screens.
+ */
+export type AdminTabScreenProps<T extends keyof AdminTabParamList> =
+  BottomTabScreenProps<AdminTabParamList, T>;
 
 /**
  * Global namespace declaration for React Navigation

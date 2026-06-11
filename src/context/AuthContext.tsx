@@ -30,15 +30,18 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { Teacher, Student } from '@/types/models';
+import type { Teacher, Student, Admin } from '@/types/models';
 import type { TeacherInsert, StudentInsert } from '@/types/database';
 import * as authService from '@/services/supabase/auth';
-import { transformTeacher, transformStudent } from '@/utils/transformers';
+import { transformTeacher, transformStudent, transformAdmin } from '@/utils/transformers';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STUDENT_PROFILE_KEY = '@bagres_student_session';
 
 /**
  * User role type
  */
-export type UserRole = 'teacher' | 'student' | null;
+export type UserRole = 'teacher' | 'student' | 'admin' | null;
 
 /**
  * Authentication context state
@@ -46,8 +49,8 @@ export type UserRole = 'teacher' | 'student' | null;
 export interface AuthContextState {
   /** Currently authenticated user */
   user: User | null;
-  /** User profile (Teacher or Student) */
-  profile: Teacher | Student | null;
+  /** User profile (Teacher, Student, or Admin) */
+  profile: Teacher | Student | Admin | null;
   /** User role */
   role: UserRole;
   /** Whether auth state is loading (initial load or during operations) */
@@ -95,7 +98,7 @@ interface AuthProviderProps {
  */
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Teacher | Student | null>(null);
+  const [profile, setProfile] = useState<Teacher | Student | Admin | null>(null);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [initializing, setInitializing] = useState<boolean>(true);
@@ -123,6 +126,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setProfile(transformStudent(studentProfile));
           setRole('student');
         }
+      } else if (userRole === 'admin') {
+        const adminProfile = await authService.getAdminProfile(userId);
+        if (adminProfile) {
+          setProfile(transformAdmin(adminProfile));
+          setRole('admin');
+        }
       }
     } catch (err) {
       console.error('Failed to load profile:', err);
@@ -137,21 +146,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const initAuth = async () => {
       try {
         setLoading(true);
+
+        // 1. Check for persisted student session
+        const savedStudentStr = await AsyncStorage.getItem(STUDENT_PROFILE_KEY);
+        if (savedStudentStr) {
+          try {
+            const savedStudent = JSON.parse(savedStudentStr);
+            setProfile(savedStudent);
+            setRole('student');
+            setUser(null);
+            
+            // Background refresh
+            authService.getStudentProfile(savedStudent.id).then(freshProfile => {
+              if (freshProfile) {
+                const transformed = transformStudent(freshProfile);
+                setProfile(transformed);
+                AsyncStorage.setItem(STUDENT_PROFILE_KEY, JSON.stringify(transformed)).catch(console.error);
+              }
+            }).catch(console.error);
+            
+            return;
+          } catch (e) {
+            console.error('Failed to parse saved student session:', e);
+            await AsyncStorage.removeItem(STUDENT_PROFILE_KEY);
+          }
+        }
+
+        // 2. Check for teacher/admin session (Supabase Auth)
         const currentUser = await authService.getCurrentUser();
         
         if (currentUser) {
           setUser(currentUser);
           
-          // Try to load teacher profile first, then student
-          const teacherProfile = await authService.getTeacherProfile(currentUser.id);
-          if (teacherProfile) {
-            setProfile(transformTeacher(teacherProfile));
-            setRole('teacher');
+          // Check if user is an admin first
+          const adminProfile = await authService.getAdminProfile(currentUser.id);
+          if (adminProfile) {
+            setProfile(transformAdmin(adminProfile));
+            setRole('admin');
           } else {
-            const studentProfile = await authService.getStudentProfile(currentUser.id);
-            if (studentProfile) {
-              setProfile(transformStudent(studentProfile));
-              setRole('student');
+            // Check if teacher
+            const teacherProfile = await authService.getTeacherProfile(currentUser.id);
+            if (teacherProfile) {
+              setProfile(transformTeacher(teacherProfile));
+              setRole('teacher');
             }
           }
         }
@@ -179,7 +216,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(true); // Internal loading state for button
       setError(null);
 
-      // Real authentication - different flow for students vs teachers
+      // Real authentication - different flow for students vs teachers vs admin
       if (userRole === 'student') {
         // Students join a class with name + class code (NO auth account needed)
         const { student } = await authService.joinClassWithCode(
@@ -190,8 +227,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Students don't have a User object (no auth account)
         // We store their profile directly and use a mock user object for navigation
         setUser(null); // Students don't have auth accounts
-        setProfile(transformStudent(student));
+        const transformedStudent = transformStudent(student);
+        setProfile(transformedStudent);
         setRole('student');
+        await AsyncStorage.setItem(STUDENT_PROFILE_KEY, JSON.stringify(transformedStudent));
+      } else if (userRole === 'admin') {
+        // ── Admin login: resolve username → internal email → Supabase Auth ──
+        // emailOrName is the nombre_usuario (e.g. "admin")
+        const adminEmail = await authService.getAdminEmailByUsername(emailOrName);
+
+        if (!adminEmail) {
+          throw new Error('Usuario administrador no encontrado. Verifica el nombre de usuario.');
+        }
+
+        const authenticatedUser = await authService.signIn(adminEmail, passwordOrCode);
+        setUser(authenticatedUser);
+
+        // Load admin profile from the admins table
+        const adminProfile = await authService.getAdminProfile(authenticatedUser.id);
+        if (!adminProfile) {
+          throw new Error('Perfil de administrador no encontrado en la base de datos.');
+        }
+        setProfile(transformAdmin(adminProfile));
+        setRole('admin');
       } else {
         // Teachers use email/password authentication
         const authenticatedUser = await authService.signIn(emailOrName, passwordOrCode);
@@ -250,8 +308,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           full_name: profileData.fullName,
         };
         const studentProfile = await authService.createStudentProfile(newUser.id, studentData);
-        setProfile(transformStudent(studentProfile));
+        const transformedStudent = transformStudent(studentProfile);
+        setProfile(transformedStudent);
         setRole('student');
+        await AsyncStorage.setItem(STUDENT_PROFILE_KEY, JSON.stringify(transformedStudent));
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign up';
@@ -277,9 +337,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setProfile(null);
       setRole(null);
       
-      // Only call Supabase signOut for teachers (students don't have auth sessions)
-      if (currentRole === 'teacher') {
+      // Only call Supabase signOut for teachers and admins (students don't have auth sessions)
+      if (currentRole === 'teacher' || currentRole === 'admin') {
         await authService.signOut();
+      } else if (currentRole === 'student') {
+        await AsyncStorage.removeItem(STUDENT_PROFILE_KEY);
       }
     } catch (err) {
       console.error('Sign out error:', err);
