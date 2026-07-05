@@ -43,6 +43,7 @@ export interface Teacher extends BaseUser {
   email: string;
   school: string;
   verified: boolean;
+  isActive: boolean;
   avatarUrl: string | null;
   subjects: string[];
 }

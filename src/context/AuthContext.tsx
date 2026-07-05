@@ -117,6 +117,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (userRole === 'teacher') {
         const teacherProfile = await authService.getTeacherProfile(userId);
         if (teacherProfile) {
+          if (teacherProfile.is_active === false) {
+            await authService.signOut();
+            setUser(null);
+            setProfile(null);
+            setRole(null);
+            return;
+          }
           setProfile(transformTeacher(teacherProfile));
           setRole('teacher');
         }
@@ -187,8 +194,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // Check if teacher
             const teacherProfile = await authService.getTeacherProfile(currentUser.id);
             if (teacherProfile) {
-              setProfile(transformTeacher(teacherProfile));
-              setRole('teacher');
+              if (teacherProfile.is_active === false) {
+                await authService.signOut();
+                setUser(null);
+                setProfile(null);
+                setRole(null);
+              } else {
+                setProfile(transformTeacher(teacherProfile));
+                setRole('teacher');
+              }
             }
           }
         }
@@ -255,8 +269,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const authenticatedUser = await authService.signIn(emailOrName, passwordOrCode);
         setUser(authenticatedUser);
 
-        // Load profile based on role
-        await loadProfile(authenticatedUser.id, userRole);
+        const teacherProfile = await authService.getTeacherProfile(authenticatedUser.id);
+        if (!teacherProfile) {
+          await authService.signOut();
+          throw new Error('Perfil de profesor no encontrado.');
+        }
+
+        if (teacherProfile.is_active === false) {
+          await authService.signOut();
+          throw new Error('La cuenta del profesor está deshabilitada. Contacta al administrador.');
+        }
+
+        setProfile(transformTeacher(teacherProfile));
+        setRole('teacher');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al iniciar sesión';

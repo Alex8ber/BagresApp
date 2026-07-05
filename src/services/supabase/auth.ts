@@ -162,6 +162,7 @@ export async function createTeacherProfile(
       .insert({
         ...data,
         id: userId,
+        is_active: true,
       } as any)
       .select()
       .single();

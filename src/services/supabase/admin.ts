@@ -206,6 +206,40 @@ export async function verifyTeacher(teacherId: string) {
   }
 }
 
+export async function deactivateTeacher(teacherId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('teachers')
+      .update({ is_active: false } as any)
+      .eq('id', teacherId)
+      .select()
+      .single();
+
+    if (error) throw new DatabaseError(error.message);
+    return data;
+  } catch (error) {
+    if (error instanceof DatabaseError) throw error;
+    throw new NetworkError('Failed to deactivate teacher');
+  }
+}
+
+export async function activateTeacher(teacherId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('teachers')
+      .update({ is_active: true } as any)
+      .eq('id', teacherId)
+      .select()
+      .single();
+
+    if (error) throw new DatabaseError(error.message);
+    return data;
+  } catch (error) {
+    if (error instanceof DatabaseError) throw error;
+    throw new NetworkError('Failed to activate teacher');
+  }
+}
+
 export async function deleteTeacher(teacherId: string) {
   try {
     const { error } = await supabase.from('teachers').delete().eq('id', teacherId);

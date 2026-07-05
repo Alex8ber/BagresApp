@@ -44,6 +44,7 @@ export function transformTeacher(dbTeacher: DbTeacher): Teacher {
     fullName: dbTeacher.full_name,
     school: dbTeacher.school,
     verified: dbTeacher.verified,
+    isActive: dbTeacher.is_active,
     avatarUrl: dbTeacher.avatar_url,
     subjects: [], // Load from relationship if needed
     createdAt: new Date(dbTeacher.created_at),

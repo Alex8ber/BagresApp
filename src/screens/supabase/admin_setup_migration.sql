@@ -26,6 +26,10 @@
 ALTER TABLE public.admins
   ADD COLUMN IF NOT EXISTS nombre_usuario TEXT;
 
+-- Agregar columna de estado activo al profesor para bloquear cuentas
+ALTER TABLE public.teachers
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
+
 -- Constraint de unicidad para el nombre de usuario
 DO $$
 BEGIN

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getAllTeachers, verifyTeacher, deleteTeacher, getAllStudents, deleteStudent, reassignStudentToClass } from '@/services/supabase/admin';
+import { getAllTeachers, verifyTeacher, deactivateTeacher, activateTeacher, deleteTeacher, getAllStudents, deleteStudent, reassignStudentToClass } from '@/services/supabase/admin';
 
 export default function AdminUsersScreen() {
   const [active, setActive] = useState<'teachers'|'students'>('teachers');
@@ -45,6 +45,33 @@ export default function AdminUsersScreen() {
     ]);
   };
 
+  const handleToggleActive = (teacher: any) => {
+    const action = teacher.is_active ? 'deshabilitar' : 'habilitar';
+    Alert.alert(
+      teacher.is_active ? 'Deshabilitar cuenta' : 'Habilitar cuenta',
+      `¿Deseas ${action} la cuenta del profesor ${teacher.full_name}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: teacher.is_active ? 'Deshabilitar' : 'Habilitar',
+          style: teacher.is_active ? 'destructive' : 'default',
+          onPress: async () => {
+            try {
+              if (teacher.is_active) {
+                await deactivateTeacher(teacher.id);
+              } else {
+                await activateTeacher(teacher.id);
+              }
+              loadTeachers();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'No se pudo actualizar el estado');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleDeleteTeacher = (id: string) => {
     Alert.alert('Eliminar', 'Eliminar profesor permanentemente?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -81,6 +108,7 @@ export default function AdminUsersScreen() {
         <Text style={styles.itemTitle}>{item.full_name}</Text>
         <Text style={styles.itemSubtitle}>{item.email}</Text>
         <Text style={styles.itemSubtitle}>Verificado: {item.verified ? 'Sí' : 'No'}</Text>
+        <Text style={styles.itemSubtitle}>Activo: {item.is_active ? 'Sí' : 'No'}</Text>
       </View>
       <View style={{flexDirection:'row'}}>
         {!item.verified && (
@@ -88,6 +116,9 @@ export default function AdminUsersScreen() {
             <Ionicons name="checkmark-done-outline" size={20} color="#2ecc71" />
           </TouchableOpacity>
         )}
+        <TouchableOpacity style={styles.actionBtn} onPress={() => handleToggleActive(item)}>
+          <Ionicons name={item.is_active ? 'ban-outline' : 'checkmark-circle-outline'} size={20} color={item.is_active ? '#f59e0b' : '#10b981'} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => handleDeleteTeacher(item.id)}>
           <Ionicons name="trash-outline" size={20} color="#e74c3c" />
         </TouchableOpacity>

@@ -11,6 +11,7 @@ export interface Teacher {
   full_name: string;
   school: string;
   verified: boolean;
+  is_active: boolean;
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
@@ -48,6 +49,7 @@ export type AdminUpdate = Partial<Omit<Admin, 'id' | 'created_at' | 'updated_at'
 export type TeacherInsert = Omit<Teacher, 'created_at' | 'updated_at' | 'avatar_url'> & {
   id?: string;
   avatar_url?: string | null;
+  is_active?: boolean;
 };
 
 /**
