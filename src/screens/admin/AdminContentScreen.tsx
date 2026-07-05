@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getAllClasses, getAllMaterials, getAllQuizzes, deleteClassByAdmin, deleteMaterialByAdmin, deleteQuizByAdmin } from '@/services/supabase/admin';
@@ -10,6 +10,8 @@ export default function AdminContentScreen() {
   const [activeTab, setActiveTab] = useState<ContentType>('classes');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -63,7 +65,9 @@ export default function AdminContentScreen() {
     return (
       <View style={styles.itemCard}>
         <View style={styles.itemInfo}>
-          <Text style={styles.itemTitle}>{item.name || item.title}</Text>
+          <TouchableOpacity onPress={() => setSelectedItem(item)}>
+            <Text style={styles.itemTitle}>{item.name || item.title}</Text>
+          </TouchableOpacity>
           {item.teachers && (
             <Text style={styles.itemSubtitle}>Profesor: {item.teachers.full_name}</Text>
           )}
@@ -108,16 +112,45 @@ export default function AdminContentScreen() {
         </TouchableOpacity>
       </View>
 
+      <View style={{padding:12, backgroundColor:'#fff'}}>
+        <TextInput placeholder="Buscar por nombre/autor..." value={query} onChangeText={setQuery} style={styles.searchInput} />
+      </View>
+
       {loading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#333" />
       ) : (
         <FlatList
-          data={data}
+          data={data.filter(d => {
+            if (!query) return true;
+            const name = (d.name || d.title || '').toString().toLowerCase();
+            return name.includes(query.toLowerCase());
+          })}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<Text style={styles.emptyText}>No hay contenido para mostrar.</Text>}
         />
+      )}
+
+      {selectedItem && (
+        <Modal transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{selectedItem.name || selectedItem.title}</Text>
+              <Text style={{marginBottom:8}}>{selectedItem.description || selectedItem.title}</Text>
+              <Text>Id: {selectedItem.id}</Text>
+              <Text>Creado: {selectedItem.created_at || selectedItem.createdAt}</Text>
+              <View style={{flexDirection:'row', justifyContent:'flex-end', marginTop:12}}>
+                <TouchableOpacity style={{padding:10}} onPress={() => setSelectedItem(null)}>
+                  <Text style={{color:'#666'}}>Cerrar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deleteButton} onPress={() => { setSelectedItem(null); handleDelete(selectedItem.id); }}>
+                  <Text style={{color:'#fff'}}>Eliminar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -134,6 +167,10 @@ const styles = StyleSheet.create({
   activeTabText: { color: '#333', fontWeight: 'bold' },
   loader: { flex: 1, justifyContent: 'center' },
   list: { padding: 20 },
+  searchInput: { backgroundColor: '#fff', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#eee' },
+  modalOverlay: { flex:1, backgroundColor:'rgba(0,0,0,0.4)', justifyContent:'center', alignItems:'center' },
+  modalContent: { backgroundColor:'#fff', padding:20, borderRadius:8, width:'85%' },
+  modalTitle: { fontSize:18, fontWeight:'bold', marginBottom:8 },
   itemCard: {
     backgroundColor: '#fff',
     padding: 15,

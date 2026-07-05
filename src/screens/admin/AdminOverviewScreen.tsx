@@ -2,10 +2,14 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
+import { getAdminStats, getRecentActivity, getPendingTeachers } from '@/services/supabase/admin';
 
 export default function AdminOverviewScreen() {
   const { profile, signOut } = useAuth();
-
+  const [stats, setStats] = React.useState<any | null>(null);
+  const [activity, setActivity] = React.useState<any | null>(null);
+  const [pendingTeachers, setPendingTeachers] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -16,7 +20,47 @@ export default function AdminOverviewScreen() {
       <View style={styles.content}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Estadísticas</Text>
-          <Text>Los datos globales se mostrarán aquí.</Text>
+          {loading && <Text>Cargando...</Text>}
+          {!loading && stats && (
+            <View>
+              <Text>Total profesores: {stats.teachers}</Text>
+              <Text>Total estudiantes: {stats.students}</Text>
+              <Text>Total clases: {stats.classes}</Text>
+              <Text>Total materiales: {stats.materials}</Text>
+              <Text>Total quizzes: {stats.quizzes}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Actividad reciente</Text>
+          {!activity && <Text>Cargando...</Text>}
+          {activity && (
+            <View>
+              <Text style={{fontWeight: 'bold', marginTop: 6}}>Últimas entregas</Text>
+              {activity.submissions?.slice(0,5).map((s: any) => (
+                <Text key={s.id}>{s.students?.full_name || 'Anon'} — {s.quizzes?.title || 'Quiz'} ({new Date(s.submitted_at).toLocaleString()})</Text>
+              ))}
+
+              <Text style={{fontWeight: 'bold', marginTop: 8}}>Nuevos profesores</Text>
+              {activity.newTeachers?.slice(0,5).map((t: any) => (
+                <Text key={t.id}>{t.full_name} — {t.email}</Text>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Profesores pendientes</Text>
+          {pendingTeachers.length === 0 ? (
+            <Text>No hay profesores pendientes.</Text>
+          ) : (
+            pendingTeachers.slice(0,5).map((p) => (
+              <View key={p.id} style={{marginBottom:6}}>
+                <Text>{p.full_name} — {p.email}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
@@ -26,6 +70,25 @@ export default function AdminOverviewScreen() {
     </SafeAreaView>
   );
 }
+  // Load data
+  React.useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const [s, a, p] = await Promise.all([getAdminStats(), getRecentActivity(), getPendingTeachers()]);
+        if (!mounted) return;
+        setStats(s);
+        setActivity(a);
+        setPendingTeachers(p);
+      } catch (err) {
+        // ignore - UI will show empty state
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
 
 const styles = StyleSheet.create({
   container: {

@@ -126,7 +126,7 @@ GRANT EXECUTE ON FUNCTION public.get_admin_email_by_username(TEXT) TO authentica
 
 INSERT INTO public.admins (id, email, full_name, nombre_usuario, created_at, updated_at)
 VALUES (
-  'REEMPLAZAR-UUID-AQUI',            -- ← UUID del usuario en Supabase Auth
+  '710566d2-ff76-4fd4-8ee8-92e470c477a8',    -- ← UUID del usuario en Supabase Auth
   'admin@admin.bagresapp.internal',  -- Email interno (no visible para el admin)
   'Super Administrador',             -- Nombre que aparece en el dashboard
   'admin',                           -- Nombre de usuario para el login

@@ -7,6 +7,7 @@ import type { AdminTabParamList } from '@/navigation/types';
 import AdminOverviewScreen from './AdminOverviewScreen';
 import AdminContentScreen from './AdminContentScreen';
 import AdminQualificationsScreen from './AdminQualificationsScreen';
+import AdminUsersScreen from './AdminUsersScreen';
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
 
@@ -36,6 +37,16 @@ export default function AdminDashboardTabs() {
           tabBarLabel: 'Contenido',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="folder-open-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Users"
+        component={AdminUsersScreen}
+        options={{
+          tabBarLabel: 'Usuarios',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
           ),
         }}
       />

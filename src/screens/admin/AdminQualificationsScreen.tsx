@@ -2,13 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getAllQuizSubmissions, updateSubmissionScore } from '@/services/supabase/admin';
+import { getAllQuizSubmissions, updateSubmissionScore, getAllClasses, getAllQuizzes } from '@/services/supabase/admin';
+import * as Clipboard from 'expo-clipboard';
 
 export default function AdminQualificationsScreen() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [newScore, setNewScore] = useState('');
+  const [filterClass, setFilterClass] = useState('');
+  const [filterQuiz, setFilterQuiz] = useState('');
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [exportCsvText, setExportCsvText] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -71,11 +76,35 @@ export default function AdminQualificationsScreen() {
         <Text style={styles.title}>Calificaciones</Text>
       </View>
 
+      <View style={{padding:12, backgroundColor:'#fff', flexDirection:'row', gap:8}}>
+        <TextInput placeholder="Filtrar por class_id" value={filterClass} onChangeText={setFilterClass} style={styles.filterInput} />
+        <TextInput placeholder="Filtrar por quiz_id" value={filterQuiz} onChangeText={setFilterQuiz} style={styles.filterInput} />
+        <TouchableOpacity style={styles.exportBtn} onPress={async () => {
+          const filtered = submissions.filter(s => {
+            if (filterClass && s.quizzes?.class_id !== filterClass) return false;
+            if (filterQuiz && s.quiz_id !== filterQuiz) return false;
+            return true;
+          });
+          const csv = await generateCSV(filtered);
+          setExportCsvText(csv);
+          try {
+            await Clipboard.setStringAsync(csv);
+            Alert.alert('CSV copiado', 'El CSV ha sido copiado al portapapeles.');
+          } catch (_) {
+            setExportModalVisible(true);
+          }
+        }}><Text style={{color:'#fff'}}>Exportar CSV</Text></TouchableOpacity>
+      </View>
+
       {loading ? (
         <ActivityIndicator style={styles.loader} size="large" color="#333" />
       ) : (
         <FlatList
-          data={submissions}
+          data={submissions.filter(s => {
+            if (filterClass && s.quizzes?.class_id !== filterClass) return false;
+            if (filterQuiz && s.quiz_id !== filterQuiz) return false;
+            return true;
+          })}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
@@ -111,8 +140,30 @@ export default function AdminQualificationsScreen() {
           </View>
         </Modal>
       )}
+
+      <Modal transparent visible={exportModalVisible} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>CSV generado</Text>
+            <TextInput value={exportCsvText} multiline style={{height:200, borderWidth:1, borderColor:'#eee', padding:8}} />
+            <View style={{flexDirection:'row', justifyContent:'flex-end', marginTop:12}}>
+              <TouchableOpacity style={{padding:10}} onPress={()=>setExportModalVisible(false)}><Text style={{color:'#666'}}>Cerrar</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
+}
+
+async function generateCSV(rows: any[]) {
+  const header = ['submission_id','student','quiz','class','score','submitted_at'];
+  const lines = rows.map(r => [r.id, r.students?.full_name || '', r.quizzes?.title || '', r.quizzes?.classes?.name || '', r.score ?? '', r.submitted_at || ''].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+  return [header.join(','), ...lines].join('\n');
+}
+
+async function exportCSV() {
+  // placeholder, actual function is bound in component to access current filtered rows
 }
 
 const styles = StyleSheet.create({
@@ -120,6 +171,8 @@ const styles = StyleSheet.create({
   header: { padding: 20, backgroundColor: '#333' },
   title: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
   loader: { flex: 1, justifyContent: 'center' },
+  filterInput: { flex:1, backgroundColor:'#fff', padding:8, borderRadius:8, borderWidth:1, borderColor:'#eee' },
+  exportBtn: { backgroundColor:'#333', padding:10, borderRadius:8 },
   list: { padding: 20 },
   card: {
     backgroundColor: '#fff',
