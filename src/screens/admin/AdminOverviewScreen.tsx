@@ -10,6 +10,25 @@ export default function AdminOverviewScreen() {
   const [activity, setActivity] = React.useState<any | null>(null);
   const [pendingTeachers, setPendingTeachers] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  React.useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const [s, a, p] = await Promise.all([getAdminStats(), getRecentActivity(), getPendingTeachers()]);
+        if (!mounted) return;
+        setStats(s);
+        setActivity(a);
+        setPendingTeachers(p);
+      } catch (err) {
+        // ignore - UI will show empty state
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -70,25 +89,6 @@ export default function AdminOverviewScreen() {
     </SafeAreaView>
   );
 }
-  // Load data
-  React.useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        const [s, a, p] = await Promise.all([getAdminStats(), getRecentActivity(), getPendingTeachers()]);
-        if (!mounted) return;
-        setStats(s);
-        setActivity(a);
-        setPendingTeachers(p);
-      } catch (err) {
-        // ignore - UI will show empty state
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    load();
-    return () => { mounted = false; };
-  }, []);
 
 const styles = StyleSheet.create({
   container: {
