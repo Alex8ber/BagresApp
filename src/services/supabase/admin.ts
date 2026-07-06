@@ -242,8 +242,12 @@ export async function activateTeacher(teacherId: string) {
 
 export async function deleteTeacher(teacherId: string) {
   try {
-    const { error } = await supabase.from('teachers').delete().eq('id', teacherId);
-    if (error) throw new DatabaseError(error.message);
+    const { error, count } = await supabase
+      .from('teachers')
+      .delete({ count: 'exact' })
+      .eq('id', teacherId);
+    if (error) throw new DatabaseError(`Supabase error: ${error.message} (code: ${error.code})`);
+    if (count === 0) throw new DatabaseError('No se eliminó ningún registro. Verifica los permisos RLS en Supabase.');
   } catch (error) {
     if (error instanceof DatabaseError) throw error;
     throw new NetworkError('Failed to delete teacher');
@@ -267,8 +271,12 @@ export async function getAllStudents() {
 
 export async function deleteStudent(studentId: string) {
   try {
-    const { error } = await supabase.from('students').delete().eq('id', studentId);
-    if (error) throw new DatabaseError(error.message);
+    const { error, count } = await supabase
+      .from('students')
+      .delete({ count: 'exact' })
+      .eq('id', studentId);
+    if (error) throw new DatabaseError(`Supabase error: ${error.message} (code: ${error.code})`);
+    if (count === 0) throw new DatabaseError('No se eliminó ningún registro. Verifica los permisos RLS en Supabase.');
   } catch (error) {
     if (error instanceof DatabaseError) throw error;
     throw new NetworkError('Failed to delete student');

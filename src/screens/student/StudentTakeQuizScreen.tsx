@@ -89,6 +89,22 @@ export default function StudentTakeQuizScreen({ navigation, route }: Props) {
           // Get quiz data for title and passing score
           const quizData = await getQuizWithQuestions(quizId);
           
+          // Generate detailed results
+          const detailedResults = quizData.questions.map(q => {
+            const studentAns = existingSubmission.answers?.find((a: any) => a.question_id === q.id);
+            const selectedOptionId = studentAns?.selected_options?.[0];
+            const selectedOption = q.options.find(opt => opt.id === selectedOptionId);
+            const correctOption = q.options.find(opt => opt.is_correct);
+
+            return {
+              questionText: q.question_text,
+              studentAnswerText: selectedOption?.option_text,
+              correctAnswerText: correctOption?.option_text || 'Sin respuesta correcta',
+              isCorrect: !!selectedOption?.is_correct,
+              explanation: q.explanation,
+            };
+          });
+
           // Quiz already completed, redirect to results
           navigation.replace('StudentQuizResults', {
             quizId: quizData.id,
@@ -98,6 +114,7 @@ export default function StudentTakeQuizScreen({ navigation, route }: Props) {
             totalQuestions,
             passed: score >= (quizData.passing_score || 70),
             passingScore: quizData.passing_score || 70,
+            detailedResults,
           });
           return;
         }
@@ -181,16 +198,24 @@ export default function StudentTakeQuizScreen({ navigation, route }: Props) {
       let correctAnswers = 0;
       const totalQuestions = quiz.questions.length;
 
-      quiz.questions.forEach((question) => {
+      const detailedResults = quiz.questions.map((question) => {
         const answer = answers.find((a) => a.questionId === question.id);
-        if (answer) {
-          const selectedOption = question.options.find(
-            (opt) => opt.id === answer.selectedOptionId
-          );
-          if (selectedOption?.is_correct) {
-            correctAnswers++;
-          }
+        const selectedOption = answer
+          ? question.options.find((opt) => opt.id === answer.selectedOptionId)
+          : undefined;
+        const correctOption = question.options.find((opt) => opt.is_correct);
+
+        if (selectedOption?.is_correct) {
+          correctAnswers++;
         }
+
+        return {
+          questionText: question.question_text,
+          studentAnswerText: selectedOption?.option_text,
+          correctAnswerText: correctOption?.option_text || 'Sin respuesta correcta',
+          isCorrect: !!selectedOption?.is_correct,
+          explanation: question.explanation,
+        };
       });
 
       const score = Math.round((correctAnswers / totalQuestions) * 100);
@@ -242,6 +267,7 @@ export default function StudentTakeQuizScreen({ navigation, route }: Props) {
         totalQuestions,
         passed,
         passingScore: quiz.passing_score || 70,
+        detailedResults,
       });
     } catch (error) {
       console.error('Error submitting quiz:', error);

@@ -41,6 +41,7 @@ interface Question {
     D: string;
   };
   correctAnswer: 'A' | 'B' | 'C' | 'D';
+  explanation?: string;
 }
 
 type OptionKey = 'A' | 'B' | 'C' | 'D';
@@ -73,6 +74,7 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
   const [optionC, setOptionC] = useState('');
   const [optionD, setOptionD] = useState('');
   const [correctOption, setCorrectOption] = useState<OptionKey>('A');
+  const [currentExplanation, setCurrentExplanation] = useState('');
   const [scheduleQuiz, setScheduleQuiz] = useState(false);
   
   // Separate date and time fields for better mobile UX
@@ -100,6 +102,7 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
         D: optionD,
       },
       correctAnswer: correctOption,
+      explanation: currentExplanation.trim() ? currentExplanation.trim() : undefined,
     };
 
     setQuestions([...questions, newQuestion]);
@@ -111,6 +114,7 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
     setOptionC('');
     setOptionD('');
     setCorrectOption('A');
+    setCurrentExplanation('');
   };
 
   const handleRemoveQuestion = (id: string) => {
@@ -264,6 +268,7 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
           question_type: 'multiple_choice',
           points: 1,
           order_index: i,
+          explanation: q.explanation,
         });
 
         // Create options
@@ -495,6 +500,16 @@ export default function TeacherCreateTestScreen({ navigation, route }: Props) {
             </View>
           ))}
         </View>
+
+        <TextInput
+          style={[styles.input, styles.textArea, { marginTop: 12 }]}
+          placeholder="Explicación o retroalimentación (opcional)"
+          placeholderTextColor="#A0AEC0"
+          value={currentExplanation}
+          onChangeText={setCurrentExplanation}
+          multiline
+          numberOfLines={2}
+        />
 
         <TouchableOpacity style={styles.addBtn} onPress={handleAddQuestion}>
           <Ionicons

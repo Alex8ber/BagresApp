@@ -268,6 +268,23 @@ export default function QuizEditorScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleUpdateExplanation = (questionId: string, text: string) => {
+    // Update UI immediately
+    dispatch({
+      type: 'UPDATE_QUESTION',
+      payload: { id: questionId, updates: { explanation: text } },
+    });
+
+    // Debounce database update
+    debounce(`question-explanation-${questionId}`, async () => {
+      try {
+        await updateQuestion(questionId, { explanation: text });
+      } catch (err) {
+        // Error updating explanation
+      }
+    });
+  };
+
   // ============================================================================
   // Sub-task 5.5: Drag-to-reorder functionality
   // ============================================================================
@@ -587,6 +604,7 @@ export default function QuizEditorScreen({ navigation, route }: Props) {
                 onUpdateQuestionText={handleUpdateQuestionText}
                 onUpdateQuestionType={handleUpdateQuestionType}
                 onUpdatePoints={handleUpdatePoints}
+                onUpdateExplanation={handleUpdateExplanation}
                 onUpdateOptionText={handleUpdateOptionText}
                 showReorderButtons={true}
               />

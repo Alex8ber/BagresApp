@@ -54,6 +54,7 @@ export interface QuestionCardProps {
   onUpdateQuestionText?: (questionId: string, text: string) => void;
   onUpdateQuestionType?: (questionId: string, type: QuestionType) => void;
   onUpdatePoints?: (questionId: string, points: number) => void;
+  onUpdateExplanation?: (questionId: string, text: string) => void;
   onUpdateOptionText?: (optionId: string, text: string) => void;
   containerStyle?: StyleProp<ViewStyle>;
   showReorderButtons?: boolean;
@@ -74,6 +75,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   onUpdateQuestionText,
   onUpdateQuestionType,
   onUpdatePoints,
+  onUpdateExplanation,
   onUpdateOptionText,
   containerStyle,
   showReorderButtons = true,
@@ -254,6 +256,28 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           )}
         </View>
       )}
+
+      {/* Explanation */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Explicación o retroalimentación (Opcional)</Text>
+        {editable && onUpdateExplanation ? (
+          <TextInput
+            style={styles.textInput}
+            placeholder="Explicación de cómo resolver el ejercicio..."
+            value={question.explanation || ''}
+            onChangeText={(text) => onUpdateExplanation(question.id, text)}
+            multiline
+            numberOfLines={2}
+            placeholderTextColor={theme.colors.text.tertiary}
+          />
+        ) : (
+          question.explanation ? (
+            <Text style={styles.readOnlyText}>{question.explanation}</Text>
+          ) : (
+            <Text style={styles.emptyText}>Sin explicación adicional.</Text>
+          )
+        )}
+      </View>
 
       {/* Open-ended hint */}
       {question.question_type === 'open_ended' && !editable && (

@@ -34,6 +34,13 @@ export type RootStackParamList = {
     totalQuestions: number;
     passed: boolean;
     passingScore: number;
+    detailedResults: Array<{
+      questionText: string;
+      studentAnswerText?: string;
+      correctAnswerText: string;
+      isCorrect: boolean;
+      explanation?: string | null;
+    }>;
   };
   TeacherMaterialDetail: { materialId: string; classId: string };
   TeacherReports: { classId?: string };

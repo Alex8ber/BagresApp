@@ -257,6 +257,7 @@ export interface QuizQuestion {
   question_type: 'single_choice' | 'multiple_choice' | 'open_ended';
   points: number;
   order_index: number;
+  explanation?: string | null;
   created_at: string;
   updated_at: string;
 }

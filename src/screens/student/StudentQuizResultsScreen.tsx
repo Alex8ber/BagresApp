@@ -21,7 +21,7 @@ import type { RootStackScreenProps } from '@/types/navigation';
 type Props = RootStackScreenProps<'StudentQuizResults'>;
 
 export default function StudentQuizResultsScreen({ navigation, route }: Props) {
-  const { quizTitle, score, correctAnswers, totalQuestions, passed, passingScore } = route.params;
+  const { quizTitle, score, correctAnswers, totalQuestions, passed, passingScore, detailedResults } = route.params;
 
   const getResultIcon = () => {
     if (passed) {
@@ -117,6 +117,57 @@ export default function StudentQuizResultsScreen({ navigation, route }: Props) {
               : `Necesitas repasar algunos conceptos. Respondiste correctamente ${correctAnswers} de ${totalQuestions} preguntas. Te recomendamos revisar el material de estudio y volver a intentarlo.`}
           </Text>
         </View>
+
+        {/* Detailed Results */}
+        {detailedResults && detailedResults.length > 0 && (
+          <View style={styles.detailsContainer}>
+            <Text style={styles.detailsTitle}>Detalle de Respuestas</Text>
+            {detailedResults.map((result, index) => (
+              <View key={index} style={styles.questionCard}>
+                <View style={styles.questionHeader}>
+                  <Text style={styles.questionNumber}>{index + 1}.</Text>
+                  <Text style={styles.questionText}>{result.questionText}</Text>
+                </View>
+
+                <View style={styles.answerSection}>
+                  <Text style={styles.answerLabel}>Tu respuesta:</Text>
+                  <View style={[styles.answerBox, result.isCorrect ? styles.answerCorrect : styles.answerIncorrect]}>
+                    <Ionicons 
+                      name={result.isCorrect ? "checkmark-circle" : "close-circle"} 
+                      size={20} 
+                      color={result.isCorrect ? theme.colors.success.main : theme.colors.error.main} 
+                    />
+                    <Text style={[styles.answerText, { color: result.isCorrect ? theme.colors.success.dark : theme.colors.error.dark }]}>
+                      {result.studentAnswerText || 'Sin responder'}
+                    </Text>
+                  </View>
+                </View>
+
+                {!result.isCorrect && (
+                  <View style={styles.answerSection}>
+                    <Text style={styles.answerLabel}>Respuesta correcta:</Text>
+                    <View style={[styles.answerBox, styles.answerCorrect]}>
+                      <Ionicons name="checkmark-circle" size={20} color={theme.colors.success.main} />
+                      <Text style={[styles.answerText, { color: theme.colors.success.dark }]}>
+                        {result.correctAnswerText}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {result.explanation ? (
+                  <View style={styles.explanationContainer}>
+                    <View style={styles.explanationHeader}>
+                      <Ionicons name="bulb" size={20} color="#F59E0B" />
+                      <Text style={styles.explanationTitle}>Explicación del profesor:</Text>
+                    </View>
+                    <Text style={styles.explanationText}>{result.explanation}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* Actions */}
@@ -300,6 +351,98 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: theme.colors.student.main,
     fontSize: 16,
+    fontWeight: '700',
+  },
+  detailsContainer: {
+    marginTop: 24,
+  },
+  detailsTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    marginBottom: 16,
+  },
+  questionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  questionHeader: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 8,
+  },
+  questionNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+  },
+  questionText: {
+    flex: 1,
+    fontSize: 16,
     fontWeight: '600',
+    color: theme.colors.text.primary,
+    lineHeight: 24,
+  },
+  answerSection: {
+    marginBottom: 12,
+  },
+  answerLabel: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  answerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  answerCorrect: {
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
+  answerIncorrect: {
+    backgroundColor: '#FFEBEE',
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  answerText: {
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+  },
+  explanationContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+  },
+  explanationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 6,
+  },
+  explanationTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#D97706',
+  },
+  explanationText: {
+    fontSize: 15,
+    color: '#92400E',
+    lineHeight: 22,
   },
 });
