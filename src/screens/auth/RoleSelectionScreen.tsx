@@ -35,7 +35,7 @@ export default function RoleSelectionScreen({ navigation }: Props) {
             <Text style={styles.title}>Bagres</Text>
             <Text style={styles.titleAccent}>App</Text>
           </View>
-          <Text style={styles.subtitle}>Choose your role to get started</Text>
+          <Text style={styles.subtitle}>Elige tu rol para comenzar</Text>
         </View>
 
         {/* Role Cards */}
@@ -45,7 +45,7 @@ export default function RoleSelectionScreen({ navigation }: Props) {
             <View style={styles.emojiContainer}>
               <Text style={styles.emoji}>👨‍🏫</Text>
             </View>
-            <Text style={styles.roleTitle}>Teacher</Text>
+            <Text style={styles.roleTitle}>Profesor</Text>
             
             <View style={styles.buttonsContainer}>
               <TouchableOpacity
@@ -53,7 +53,7 @@ export default function RoleSelectionScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('TeacherLogin')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.loginButtonText}>Login</Text>
+                <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -61,7 +61,7 @@ export default function RoleSelectionScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('TeacherRegister')}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.registerButtonText, styles.teacherRegisterText]}>Register</Text>
+                <Text style={[styles.registerButtonText, styles.teacherRegisterText]}>Registrarse</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -71,7 +71,7 @@ export default function RoleSelectionScreen({ navigation }: Props) {
             <View style={styles.emojiContainer}>
               <Text style={styles.emoji}>👨‍🎓</Text>
             </View>
-            <Text style={styles.roleTitle}>Student</Text>
+            <Text style={styles.roleTitle}>Estudiante</Text>
             
             <View style={styles.buttonsContainer}>
               <TouchableOpacity
@@ -79,7 +79,7 @@ export default function RoleSelectionScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('StudentLogin')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.loginButtonText}>Login</Text>
+                <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
               </TouchableOpacity>
             </View>
           </View>
