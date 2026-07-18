@@ -306,7 +306,7 @@ export async function getAdminProfile(userId: string): Promise<Admin | null> {
 export async function getAdminEmailByUsername(username: string): Promise<string | null> {
   try {
     // Try using the DB function first (most reliable)
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .rpc('get_admin_email_by_username', { p_username: username.trim().toLowerCase() });
 
     if (!error && data) {
