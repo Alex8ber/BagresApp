@@ -10,7 +10,7 @@
 --   de service_role o con el rol de administrador.
 -- =====================================================================
 
-CREATE OR REPLACE FUNCTION public.admin_delete_teacher_profile(p_teacher_id UUID)
+CREATE OR REPLACE FUNCTION public.admin_delete_teacher_profile(p_teacher_id TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -33,9 +33,9 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.admin_delete_teacher_profile(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_teacher_profile(TEXT) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.admin_delete_student_profile(p_student_id UUID)
+CREATE OR REPLACE FUNCTION public.admin_delete_student_profile(p_student_id TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -58,4 +58,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.admin_delete_student_profile(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_student_profile(TEXT) TO authenticated;

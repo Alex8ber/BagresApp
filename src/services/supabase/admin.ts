@@ -240,21 +240,51 @@ export async function activateTeacher(teacherId: string) {
   }
 }
 
+function normalizeRpcBooleanResult(result: any): boolean {
+  if (result === true) return true;
+  if (Array.isArray(result) && result.length === 1 && result[0] === true) return true;
+  if (typeof result === 'object' && result !== null && Object.values(result).includes(true)) return true;
+  return false;
+}
+
+async function deleteTeacherDirect(teacherId: string) {
+  const { data, error, count } = await supabase
+    .from('teachers')
+    .delete({ count: 'exact' })
+    .eq('id', teacherId);
+
+  console.log('deleteTeacherDirect result', { data, error, count });
+
+  if (error) {
+    throw new DatabaseError(`Supabase error: ${error.message} (code: ${error.code})`);
+  }
+
+  if (count === 0) {
+    throw new DatabaseError('No se eliminó ningún profesor. Verifica el identificador.');
+  }
+}
+
 export async function deleteTeacher(teacherId: string) {
   try {
+    console.log('deleteTeacher called', { teacherId });
     const { data, error } = await (supabase as any).rpc('admin_delete_teacher_profile', {
       p_teacher_id: teacherId,
     });
 
+    console.log('deleteTeacher RPC response', { data, error });
+
     if (error) {
-      throw new DatabaseError(`Supabase error: ${error.message} (code: ${error.code})`);
+      console.warn('RPC deleteTeacher failed, falling back to direct delete', error);
+      return deleteTeacherDirect(teacherId);
     }
 
-    if (data !== true) {
-      throw new DatabaseError('No se pudo completar la eliminación del profesor.');
+    if (!normalizeRpcBooleanResult(data)) {
+      console.warn('RPC deleteTeacher returned unexpected result, falling back to direct delete', data);
+      return deleteTeacherDirect(teacherId);
     }
   } catch (error) {
     if (error instanceof DatabaseError) throw error;
+    console.error('deleteTeacher exception', error);
     throw new NetworkError('Failed to delete teacher');
   }
 }
@@ -274,21 +304,42 @@ export async function getAllStudents() {
   }
 }
 
+async function deleteStudentDirect(studentId: string) {
+  const { error, count } = await supabase
+    .from('students')
+    .delete({ count: 'exact' })
+    .eq('id', studentId);
+
+  if (error) {
+    throw new DatabaseError(`Supabase error: ${error.message} (code: ${error.code})`);
+  }
+
+  if (count === 0) {
+    throw new DatabaseError('No se eliminó ningún estudiante. Verifica el identificador.');
+  }
+}
+
 export async function deleteStudent(studentId: string) {
   try {
+    console.log('deleteStudent called', { studentId });
     const { data, error } = await (supabase as any).rpc('admin_delete_student_profile', {
       p_student_id: studentId,
     });
 
+    console.log('deleteStudent RPC response', { data, error });
+
     if (error) {
-      throw new DatabaseError(`Supabase error: ${error.message} (code: ${error.code})`);
+      console.warn('RPC deleteStudent failed, falling back to direct delete', error);
+      return deleteStudentDirect(studentId);
     }
 
-    if (data !== true) {
-      throw new DatabaseError('No se pudo completar la eliminación del estudiante.');
+    if (!normalizeRpcBooleanResult(data)) {
+      console.warn('RPC deleteStudent returned unexpected result, falling back to direct delete', data);
+      return deleteStudentDirect(studentId);
     }
   } catch (error) {
     if (error instanceof DatabaseError) throw error;
+    console.error('deleteStudent exception', error);
     throw new NetworkError('Failed to delete student');
   }
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Modal, TextInput, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getAllTeachers, verifyTeacher, deactivateTeacher, activateTeacher, deleteTeacher, getAllStudents, deleteStudent, reassignStudentToClass } from '@/services/supabase/admin';
@@ -73,17 +73,91 @@ export default function AdminUsersScreen() {
   };
 
   const handleDeleteTeacher = (id: string) => {
-    Alert.alert('Eliminar', 'Eliminar profesor permanentemente?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => { try { await deleteTeacher(id); loadTeachers(); } catch (err: any) { Alert.alert('Error', err.message || 'No se pudo eliminar'); } } }
-    ]);
+    if (!id) {
+      if (Platform.OS === 'web') {
+        window.alert('Error: No se encontró el ID del profesor');
+      } else {
+        Alert.alert('Error', 'No se encontró el ID del profesor');
+      }
+      return;
+    }
+
+    const performDelete = async () => {
+      console.log('Delete teacher pressed', { id });
+      try {
+        await deleteTeacher(id);
+        await loadTeachers();
+        if (Platform.OS === 'web') {
+          window.alert('Profesor eliminado correctamente');
+        } else {
+          Alert.alert('Éxito', 'Profesor eliminado correctamente');
+        }
+      } catch (err: any) {
+        const message = err?.message || JSON.stringify(err) || 'No se pudo eliminar';
+        console.error('Failed deleteTeacher:', message, err);
+        if (Platform.OS === 'web') {
+          window.alert(`Error: ${message}`);
+        } else {
+          Alert.alert('Error', message);
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Eliminar profesor permanentemente?');
+      if (confirmed) {
+        performDelete();
+      }
+    } else {
+      Alert.alert('Eliminar', 'Eliminar profesor permanentemente?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: performDelete }
+      ]);
+    }
   };
 
   const handleDeleteStudent = (id: string) => {
-    Alert.alert('Eliminar', 'Eliminar estudiante permanentemente?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => { try { await deleteStudent(id); loadStudents(); } catch (err: any) { Alert.alert('Error', err.message || 'No se pudo eliminar'); } } }
-    ]);
+    if (!id) {
+      if (Platform.OS === 'web') {
+        window.alert('Error: No se encontró el ID del estudiante');
+      } else {
+        Alert.alert('Error', 'No se encontró el ID del estudiante');
+      }
+      return;
+    }
+
+    const performDelete = async () => {
+      console.log('Delete student pressed', { id });
+      try {
+        await deleteStudent(id);
+        await loadStudents();
+        if (Platform.OS === 'web') {
+          window.alert('Estudiante eliminado correctamente');
+        } else {
+          Alert.alert('Éxito', 'Estudiante eliminado correctamente');
+        }
+      } catch (err: any) {
+        const message = err?.message || JSON.stringify(err) || 'No se pudo eliminar';
+        console.error('Failed deleteStudent:', message, err);
+        if (Platform.OS === 'web') {
+          window.alert(`Error: ${message}`);
+        } else {
+          Alert.alert('Error', message);
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Eliminar estudiante permanentemente?');
+      if (confirmed) {
+        performDelete();
+      }
+    } else {
+      Alert.alert('Eliminar', 'Eliminar estudiante permanentemente?', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: performDelete }
+      ]);
+    }
   };
 
   const openReassign = (student: any) => {
@@ -112,16 +186,23 @@ export default function AdminUsersScreen() {
       </View>
       <View style={{flexDirection:'row'}}>
         {!item.verified && (
-          <TouchableOpacity style={styles.actionBtn} onPress={() => handleVerify(item.id)}>
+          <TouchableOpacity style={styles.actionBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7} onPress={() => handleVerify(item.id)}>
             <Ionicons name="checkmark-done-outline" size={20} color="#2ecc71" />
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.actionBtn} onPress={() => handleToggleActive(item)}>
+        <TouchableOpacity style={styles.actionBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7} onPress={() => handleToggleActive(item)}>
           <Ionicons name={item.is_active ? 'ban-outline' : 'checkmark-circle-outline'} size={20} color={item.is_active ? '#f59e0b' : '#10b981'} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => handleDeleteTeacher(item.id)}>
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          onPress={() => {
+            console.log('pressed deleteTeacher icon', item.id);
+            handleDeleteTeacher(item.id);
+          }}
+        >
           <Ionicons name="trash-outline" size={20} color="#e74c3c" />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -133,12 +214,19 @@ export default function AdminUsersScreen() {
         <Text style={styles.itemSubtitle}>Clase: {item.classes?.name || 'N/A'}</Text>
       </View>
       <View style={{flexDirection:'row'}}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => openReassign(item)}>
+        <TouchableOpacity style={styles.actionBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7} onPress={() => openReassign(item)}>
           <Ionicons name="swap-horizontal-outline" size={20} color="#3498db" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => handleDeleteStudent(item.id)}>
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          onPress={() => {
+            console.log('pressed deleteStudent icon', item.id);
+            handleDeleteStudent(item.id);
+          }}
+        >
           <Ionicons name="trash-outline" size={20} color="#e74c3c" />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
@@ -192,7 +280,8 @@ const styles = StyleSheet.create({
   itemCard: { backgroundColor:'#fff', padding:12, borderRadius:8, marginBottom:12, flexDirection:'row', alignItems:'center' },
   itemTitle: { fontSize:16, fontWeight:'bold' },
   itemSubtitle: { color:'#666' },
-  actionBtn: { padding:8, marginLeft:8 },
+  actionBtn: { padding:8, marginLeft:8, minWidth:44, minHeight:44, alignItems:'center', justifyContent:'center' },
+  actionBtnPressed: { opacity: 0.5 },
   emptyText: { textAlign:'center', color:'#999', marginTop:20 },
   modalOverlay: { flex:1, backgroundColor:'rgba(0,0,0,0.4)', justifyContent:'center', alignItems:'center' },
   modalContent: { width:'85%', backgroundColor:'#fff', padding:16, borderRadius:8 },
