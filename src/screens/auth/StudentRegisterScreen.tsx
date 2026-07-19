@@ -58,7 +58,7 @@ export default function StudentRegisterScreen({ navigation }: Props) {
     validate: (values) => {
       const errors: StudentRegisterFormErrors = {};
       
-      const fullNameError = validateRequired(values.fullName, 'Full Name');
+      const fullNameError = validateRequired(values.fullName, 'Nombre completo');
       if (fullNameError) {
         errors.fullName = fullNameError;
       }
@@ -68,7 +68,7 @@ export default function StudentRegisterScreen({ navigation }: Props) {
         errors.email = emailError;
       }
       
-      const gradeError = validateRequired(values.grade, 'Grade');
+      const gradeError = validateRequired(values.grade, 'Grado');
       if (gradeError) {
         errors.grade = gradeError;
       }
@@ -97,7 +97,7 @@ export default function StudentRegisterScreen({ navigation }: Props) {
         });
         // Navigation is handled by auth state change
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Registration failed');
+        setError(err instanceof Error ? err.message : 'Error en el registro');
       }
     },
   });

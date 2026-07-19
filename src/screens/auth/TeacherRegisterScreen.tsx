@@ -58,7 +58,7 @@ export default function TeacherRegisterScreen({ navigation }: Props) {
     validate: (values) => {
       const errors: TeacherRegisterFormErrors = {};
       
-      const fullNameError = validateRequired(values.fullName, 'Full Name');
+      const fullNameError = validateRequired(values.fullName, 'Nombre completo');
       if (fullNameError) {
         errors.fullName = fullNameError;
       }
@@ -68,7 +68,7 @@ export default function TeacherRegisterScreen({ navigation }: Props) {
         errors.email = emailError;
       }
       
-      const schoolError = validateRequired(values.school, 'School');
+      const schoolError = validateRequired(values.school, 'Institución educativa');
       if (schoolError) {
         errors.school = schoolError;
       }
@@ -98,7 +98,7 @@ export default function TeacherRegisterScreen({ navigation }: Props) {
         // Navigate to verification screen
         navigation.navigate('TeacherVerification', { email: data.email });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Registration failed');
+        setError(err instanceof Error ? err.message : 'Error en el registro');
       }
     },
   });

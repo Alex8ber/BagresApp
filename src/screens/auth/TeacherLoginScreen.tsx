@@ -64,7 +64,7 @@ export default function TeacherLoginScreen({ navigation }: Props) {
         errors.email = emailError;
       }
       
-      const passwordError = validateRequired(values.password, 'Password');
+      const passwordError = validateRequired(values.password, 'Contraseña');
       if (passwordError) {
         errors.password = passwordError;
       }
@@ -77,7 +77,7 @@ export default function TeacherLoginScreen({ navigation }: Props) {
         await signIn(data.email, data.password, 'teacher');
         // Navigation is handled by auth state change
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Login failed');
+        setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
       }
     },
   });
