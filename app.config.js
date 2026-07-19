@@ -42,7 +42,7 @@ const config = {
       projectId: "caad28b3-cbd1-4af1-acb7-39e428ec1ba7"
     },
     supabaseUrl: "https://xjdstgxxkdhubpdzitut.supabase.co",
-    supabaseAnonKey: "sb_publishable_x5Vb4XHbpP95jothicdfaQ_p88q_aIr",
+    supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqZHN0Z3h4a2RodWJwZHppdHV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MDE3NjEsImV4cCI6MjA5MDQ3Nzc2MX0.dnG0msS-Q9E228kFHOvMGOSOoqWHlX4NVF9-KlfCtmQ",
   }
 };
 

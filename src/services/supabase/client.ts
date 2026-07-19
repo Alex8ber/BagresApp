@@ -14,12 +14,23 @@ import Constants from 'expo-constants';
 const SUPABASE_URL = 
   Constants.expoConfig?.extra?.supabaseUrl || 
   process.env.EXPO_PUBLIC_SUPABASE_URL || 
+  process.env.REACT_APP_SUPABASE_URL ||
   'https://your-project.supabase.co';
 
 const SUPABASE_ANON_KEY = 
   Constants.expoConfig?.extra?.supabaseAnonKey || 
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+  process.env.REACT_APP_SUPABASE_ANON_KEY || 
   'your-anon-key';
+
+console.log('Supabase env loaded', {
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY_LENGTH: SUPABASE_ANON_KEY?.length,
+  SUPABASE_ANON_KEY_SAMPLE: SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.slice(0, 20) + '...' : null,
+  usingConstants: !!Constants.expoConfig?.extra?.supabaseAnonKey,
+  usingExpoEnv: !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  usingReactEnv: !!process.env.REACT_APP_SUPABASE_ANON_KEY,
+});
 
 // Check if credentials are properly configured
 const isConfigured = SUPABASE_URL !== 'https://your-project.supabase.co' && 
